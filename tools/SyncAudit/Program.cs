@@ -79,10 +79,11 @@ internal sealed class TypeInfo {
     public string Assembly = "";
     public string FullName = "";
     public string SimpleName = "";
-    public string BaseName;
+    public string BaseFullName;
     public bool IsAbstract;
     public bool IsNested;
     public string OuterFullName = "";
+    public string DeclaringFullName;
     public readonly HashSet<string> Fields = new();
     public Effect OwnEffects;
     public readonly Dictionary<Effect, SortedSet<string>> Evidence = new();
@@ -93,8 +94,10 @@ internal sealed class TypeInfo {
 /// </summary>
 internal sealed class GameIndex {
     public readonly List<TypeInfo> All = new();
-    private readonly Dictionary<string, TypeInfo> _topBySimple = new();
-    private readonly Dictionary<string, List<TypeInfo>> _nestedByOuter = new();
+    public const string FsmStateActionName = "HutongGames.PlayMaker.FsmStateAction";
+
+    private readonly Dictionary<string, TypeInfo> _byFullName = new();
+    private readonly Dictionary<string, List<TypeInfo>> _nestedByDeclaring = new();
 
     public static GameIndex Load(string dir) {
         var index = new GameIndex();
@@ -125,10 +128,11 @@ internal sealed class GameIndex {
                     Assembly = assembly,
                     SimpleName = md.GetString(td.Name),
                     FullName = Meta.FullTypeName(md, th),
-                    BaseName = SafeBaseName(md, td),
+                    BaseFullName = SafeBaseFullName(md, td),
                     IsAbstract = (td.Attributes & TypeAttributes.Abstract) != 0,
                     IsNested = !td.GetDeclaringType().IsNil,
                     OuterFullName = outerFullName,
+                    DeclaringFullName = td.GetDeclaringType().IsNil ? null : Meta.FullTypeName(md, td.GetDeclaringType()),
                 };
 
                 foreach (var fh in td.GetFields()) {
@@ -181,16 +185,17 @@ internal sealed class GameIndex {
         }
 
         foreach (var info in index.All) {
-            if (info.IsNested) {
-                if (!index._nestedByOuter.TryGetValue(info.OuterFullName, out var list)) {
-                    list = new List<TypeInfo>();
-                    index._nestedByOuter[info.OuterFullName] = list;
-                }
-
-                list.Add(info);
-            } else {
-                index._topBySimple.TryAdd(info.SimpleName, info);
+            index._byFullName.TryAdd(info.FullName, info);
+            if (info.DeclaringFullName == null) {
+                continue;
             }
+
+            if (!index._nestedByDeclaring.TryGetValue(info.DeclaringFullName, out var list)) {
+                list = new List<TypeInfo>();
+                index._nestedByDeclaring[info.DeclaringFullName] = list;
+            }
+
+            list.Add(info);
         }
 
         return index;
@@ -201,13 +206,13 @@ internal sealed class GameIndex {
     /// </summary>
     public bool IsAction(TypeInfo type) {
         var seen = new HashSet<string>();
-        var name = type.BaseName;
+        var name = type.BaseFullName;
         while (name != null && seen.Add(name)) {
-            if (name == "FsmStateAction") {
+            if (name == FsmStateActionName) {
                 return true;
             }
 
-            name = _topBySimple.TryGetValue(name, out var baseType) ? baseType.BaseName : null;
+            name = _byFullName.TryGetValue(name, out var baseType) ? baseType.BaseFullName : null;
         }
 
         return false;
@@ -220,13 +225,9 @@ internal sealed class GameIndex {
         var result = new List<TypeInfo>();
         var seen = new HashSet<string>();
         var current = type;
-        while (current != null && current.SimpleName != "FsmStateAction" && seen.Add(current.FullName)) {
-            result.Add(current);
-            if (_nestedByOuter.TryGetValue(current.FullName, out var nested)) {
-                result.AddRange(nested);
-            }
-
-            current = current.BaseName != null && _topBySimple.TryGetValue(current.BaseName, out var baseType)
+        while (current != null && current.FullName != FsmStateActionName && seen.Add(current.FullName)) {
+            AddWithNested(current, result);
+            current = current.BaseFullName != null && _byFullName.TryGetValue(current.BaseFullName, out var baseType)
                 ? baseType
                 : null;
         }
@@ -234,9 +235,20 @@ internal sealed class GameIndex {
         return result;
     }
 
-    private static string SafeBaseName(MetadataReader md, TypeDefinition td) {
+    private void AddWithNested(TypeInfo type, List<TypeInfo> result) {
+        result.Add(type);
+        if (!_nestedByDeclaring.TryGetValue(type.FullName, out var nested)) {
+            return;
+        }
+
+        foreach (var child in nested) {
+            AddWithNested(child, result);
+        }
+    }
+
+    private static string SafeBaseFullName(MetadataReader md, TypeDefinition td) {
         try {
-            return Meta.TypeName(md, td.BaseType).Name;
+            return Meta.ReferencedFullName(md, td.BaseType);
         } catch {
             return null;
         }
@@ -461,7 +473,9 @@ internal static class Audit {
     public static List<ActionRow> BuildRows(GameIndex game, SsmpCoverage ssmp) {
         var rows = new List<ActionRow>();
         foreach (var type in game.All) {
-            if (type.IsNested || type.IsAbstract || type.SimpleName == "FsmStateAction" || !game.IsAction(type)) {
+            // Nested action classes are fine, compiler-generated closures and iterators are not
+            if (type.SimpleName.StartsWith('<') || type.IsAbstract || type.FullName == GameIndex.FsmStateActionName ||
+                !game.IsAction(type)) {
                 continue;
             }
 
@@ -547,36 +561,75 @@ internal static class ReportWriter {
         RegexOptions.Compiled
     );
 
-    public static List<string> SectionA(List<ActionRow> rows) => rows
-        .Where(r => !r.Supported && OffEntity.Any(c => r.Effects.HasFlag(c.Flag)))
-        .Select(r => r.Name)
-        .ToList();
+    private static bool InSectionA(ActionRow row) => !row.Supported && OffEntity.Any(c => row.Effects.HasFlag(c.Flag));
 
-    public static List<string> SectionB(List<ActionRow> rows) => rows
-        .Where(r => r.Effects.HasFlag(Effect.HeroRef) && !r.Supported && !r.Targeted && !r.PatcherRef)
-        .Select(r => r.Name)
-        .ToList();
+    private static bool InSectionB(ActionRow row) =>
+        row.Effects.HasFlag(Effect.HeroRef) && !row.Supported && !row.Targeted && !row.PatcherRef;
 
-    public static List<string> SectionC1(List<ActionRow> rows) => rows
-        .Where(r => r.Effects.HasFlag(Effect.Random) && (r.Effects & RandomSensitive) != 0 && !r.Supported)
-        .Select(r => r.Name)
-        .ToList();
+    private static bool InSectionC1(ActionRow row) =>
+        row.Effects.HasFlag(Effect.Random) && (row.Effects & RandomSensitive) != 0 && !row.Supported;
 
-    public static List<string> SectionC2(List<ActionRow> rows) => rows
-        .Where(r => r.Effects.HasFlag(Effect.Random) && (r.Effects & RandomSensitive) != 0 && r.Supported && !r.IlHooked)
-        .Select(r => r.Name)
-        .ToList();
+    private static bool InSectionC2(ActionRow row) =>
+        row.Effects.HasFlag(Effect.Random) && (row.Effects & RandomSensitive) != 0 && row.Supported && !row.IlHooked;
+
+    private static bool IsVariantOf(ActionRow row, string supported) =>
+        !row.Supported &&
+        row.Name.Length > supported.Length &&
+        row.Name.StartsWith(supported, StringComparison.Ordinal) &&
+        VariantSuffix.IsMatch(row.Name[supported.Length..]);
+
+    private static bool InSectionE(ActionRow row) =>
+        row.Supported && (row.EveryFrameField || row.Effects.HasFlag(Effect.FrameTimer)) && (row.Effects & Visible) != 0;
+
+    /// <summary>
+    /// The report sections an action appears in, for tools that join this audit with asset data. "L" marks unsupported
+    /// actions outside every section whose effects may stay on the entity itself.
+    /// </summary>
+    private static string[] Tags(ActionRow row, SsmpCoverage ssmp) {
+        var tags = new List<string>();
+        if (InSectionA(row)) {
+            tags.Add("A");
+        }
+
+        if (InSectionB(row)) {
+            tags.Add("B");
+        }
+
+        if (InSectionC1(row)) {
+            tags.Add("C1");
+        }
+
+        if (InSectionC2(row)) {
+            tags.Add("C2");
+        }
+
+        if (ssmp.Supported.Any(s => IsVariantOf(row, s))) {
+            tags.Add("D");
+        }
+
+        if (InSectionE(row)) {
+            tags.Add("E");
+        }
+
+        if (tags.Count == 0 && !row.Supported && MaybeLocal.Any(c => row.Effects.HasFlag(c.Flag))) {
+            tags.Add("L");
+        }
+
+        return tags.ToArray();
+    }
+
+    public static List<string> SectionA(List<ActionRow> rows) => rows.Where(InSectionA).Select(r => r.Name).ToList();
+
+    public static List<string> SectionB(List<ActionRow> rows) => rows.Where(InSectionB).Select(r => r.Name).ToList();
+
+    public static List<string> SectionC1(List<ActionRow> rows) => rows.Where(InSectionC1).Select(r => r.Name).ToList();
+
+    public static List<string> SectionC2(List<ActionRow> rows) => rows.Where(InSectionC2).Select(r => r.Name).ToList();
 
     public static List<string> SectionD(List<ActionRow> rows, SsmpCoverage ssmp) {
         var lines = new List<string>();
         foreach (var supported in ssmp.Supported.OrderBy(s => s, StringComparer.Ordinal)) {
-            var variants = rows
-                .Where(r => !r.Supported &&
-                            r.Name.Length > supported.Length &&
-                            r.Name.StartsWith(supported, StringComparison.Ordinal) &&
-                            VariantSuffix.IsMatch(r.Name[supported.Length..]))
-                .Select(r => r.Name)
-                .ToList();
+            var variants = rows.Where(r => IsVariantOf(r, supported)).Select(r => r.Name).ToList();
             if (variants.Count > 0) {
                 lines.Add($"- `{supported}` → {Names(variants)}");
             }
@@ -585,12 +638,7 @@ internal static class ReportWriter {
         return lines;
     }
 
-    public static List<string> SectionE(List<ActionRow> rows) => rows
-        .Where(r => r.Supported &&
-                    (r.EveryFrameField || r.Effects.HasFlag(Effect.FrameTimer)) &&
-                    (r.Effects & Visible) != 0)
-        .Select(r => r.Name)
-        .ToList();
+    public static List<string> SectionE(List<ActionRow> rows) => rows.Where(InSectionE).Select(r => r.Name).ToList();
 
     public static string Markdown(List<ActionRow> rows, SsmpCoverage ssmp, string gameDir, HashSet<string> allTypeNames) {
         var sb = new StringBuilder();
@@ -734,6 +782,8 @@ internal static class ReportWriter {
                 transferSafe = r.TransferSafe,
                 targeted = r.Targeted,
                 patcherRef = r.PatcherRef,
+                tags = Tags(r, ssmp),
+                variantOf = ssmp.Supported.Where(s => IsVariantOf(r, s)).OrderBy(s => s, StringComparer.Ordinal).ToArray(),
                 evidence = r.Evidence,
             }),
         };
@@ -884,6 +934,45 @@ internal static class Meta {
             }
             default:
                 return (null, null);
+        }
+    }
+
+    /// <summary>
+    /// Full name of a referenced type in the FullTypeName format ("Namespace.Outer/Inner"). Generic instantiations
+    /// resolve to their generic type definition.
+    /// </summary>
+    public static string ReferencedFullName(MetadataReader md, EntityHandle handle) {
+        if (handle.IsNil) {
+            return null;
+        }
+
+        switch (handle.Kind) {
+            case HandleKind.TypeDefinition:
+                return FullTypeName(md, (TypeDefinitionHandle) handle);
+            case HandleKind.TypeReference: {
+                var reference = md.GetTypeReference((TypeReferenceHandle) handle);
+                var name = md.GetString(reference.Name);
+                if (reference.ResolutionScope.Kind == HandleKind.TypeReference) {
+                    return ReferencedFullName(md, reference.ResolutionScope) + "/" + name;
+                }
+
+                var ns = md.GetString(reference.Namespace);
+                return string.IsNullOrEmpty(ns) ? name : ns + "." + name;
+            }
+            case HandleKind.TypeSpecification: {
+                var specification = md.GetTypeSpecification((TypeSpecificationHandle) handle);
+                var reader = md.GetBlobReader(specification.Signature);
+                if (reader.ReadByte() != 0x15) {
+                    // Not a generic instantiation
+                    return null;
+                }
+
+                // CLASS or VALUETYPE marker
+                reader.ReadByte();
+                return ReferencedFullName(md, reader.ReadTypeHandle());
+            }
+            default:
+                return null;
         }
     }
 
