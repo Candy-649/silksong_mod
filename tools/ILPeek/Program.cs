@@ -131,10 +131,14 @@ foreach (var file in files)
                 if (sep < 0) continue;
                 var tType = target[..sep];
                 var tMethod = target[(sep + 2)..];
-                var typeMatch = tType.Contains('.') ? tType == fullName : tType == simpleName;
-                if (isTopLevel && typeMatch && (tMethod == "*" || tMethod == methodName))
+                // Nested types, such as compiler-generated coroutines, are matched by "Outer/Nested" as --find prints them
+                var displayName = isTopLevel ? fullName : $"{outerFull}/{simpleName}";
+                var typeMatch = tType.Contains('/')
+                    ? tType == displayName
+                    : isTopLevel && (tType.Contains('.') ? tType == fullName : tType == simpleName);
+                if (typeMatch && (tMethod == "*" || tMethod == methodName))
                 {
-                    dumpOutput.Add($"--- {fullName}::{methodName}  ({Path.GetFileName(file)}, {il.Length} bytes of IL) ---");
+                    dumpOutput.Add($"--- {displayName}::{methodName}  ({Path.GetFileName(file)}, {il.Length} bytes of IL) ---");
                     dumpOutput.AddRange(Disassemble(md, il, oneByte, twoByte));
                     dumpOutput.Add("");
                 }
