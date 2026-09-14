@@ -71,6 +71,12 @@ internal static class RoomAnalyzer {
         return null;
     }
 
+    private static bool IsCombatEvent(string eventName) {
+        return eventName.Contains("DAMAGE", StringComparison.Ordinal) ||
+               eventName.Contains("STUN", StringComparison.Ordinal) ||
+               eventName.Contains("PARRY", StringComparison.Ordinal) || eventName == "BLOCKED HIT";
+    }
+
     private static void AnalyzeRoom(string scene, string root, List<FsmRecord> records) {
         var graphs = new List<Graph>();
         foreach (var record in records) {
@@ -94,8 +100,8 @@ internal static class RoomAnalyzer {
             var changed = false;
             foreach (var graph in graphs) {
                 changed |= graph.AddSendersOf(fightEvents);
-                graph.UpdateLeading();
-                foreach (var eventName in graph.StartEvents()) {
+                graph.Update();
+                foreach (var eventName in graph.FightEvents()) {
                     changed |= fightEvents.Add(eventName);
                 }
             }
@@ -105,19 +111,33 @@ internal static class RoomAnalyzer {
             }
         }
 
+        foreach (var graph in graphs) {
+            graph.AddSendersOf(fightEvents);
+            graph.Update();
+        }
+
         Console.WriteLine($"== {scene} / {root}");
         Console.WriteLine($"   fight events: {string.Join(", ", fightEvents)}");
         foreach (var graph in graphs) {
-            var starts = graph.EventStarts(graph.PreFightStates());
+            var starts = graph.EventStarts();
             if (starts.Count == 0 && graph.FightStates.Count == 0) {
                 continue;
             }
 
             var entity = graph.Record.Category == "entity" ? " [entity]" : "";
             Console.WriteLine($"   {graph.Record.ObjectPath} · {graph.Record.FsmName}{entity} (start {graph.Record.StartState})");
-            Console.WriteLine($"      fight states: {string.Join(", ", graph.FightStates)}");
+            Console.WriteLine(
+                $"      fight states: {string.Join(", ", graph.FightStates)} (began: {string.Join(", ", graph.BaseFightStates)})"
+            );
             if (starts.Count > 0) {
                 Console.WriteLine($"      event starts: {string.Join("; ", starts)}");
+            }
+
+            // ROOMS_DUMP=<part of scene/object path> prints the analyzed graph of matching FSMs
+            var dump = Environment.GetEnvironmentVariable("ROOMS_DUMP");
+            if (!string.IsNullOrEmpty(dump) &&
+                $"{scene}/{graph.Record.ObjectPath}".Contains(dump, StringComparison.Ordinal)) {
+                graph.Dump();
             }
         }
     }
@@ -129,13 +149,18 @@ internal static class RoomAnalyzer {
 
     private sealed class Graph {
         public readonly FsmRecord Record;
+        public readonly HashSet<string> BaseFightStates = new(StringComparer.Ordinal);
         public readonly HashSet<string> FightStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _ownEvents = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _subFsmStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<string>> _sentEvents = new(StringComparer.Ordinal);
         private readonly List<(string State, string Event, string To)> _transitions = [];
         private readonly List<(string Event, string To)> _globals = [];
         private readonly HashSet<string> _stateNames = new(StringComparer.Ordinal);
         private HashSet<string> _leading = new(StringComparer.Ordinal);
+        private HashSet<string> _inevitable = new(StringComparer.Ordinal);
+        private HashSet<string> _fightReachable = new(StringComparer.Ordinal);
+        private HashSet<string> _preFight = new(StringComparer.Ordinal);
 
         public Graph(FsmRecord record) {
             Record = record;
@@ -154,15 +179,24 @@ internal static class RoomAnalyzer {
                     if (sentEvent != null) {
                         sent.Add(sentEvent);
                         if (CloseEvents.Contains(sentEvent)) {
-                            FightStates.Add(state.Name);
+                            BaseFightStates.Add(state.Name);
                         }
                     }
 
                     if (isEntity && shortName == "DisplayBossTitle") {
-                        FightStates.Add(state.Name);
+                        BaseFightStates.Add(state.Name);
                     }
 
-                    if (!DetectionPrefixes.Any(prefix => shortName.StartsWith(prefix, StringComparison.Ordinal))) {
+                    if (shortName.StartsWith("RunFSM", StringComparison.Ordinal)) {
+                        _subFsmStates.Add(state.Name);
+                    }
+
+                    var isPositionOfOwner =
+                        (shortName.StartsWith("CheckXPosition", StringComparison.Ordinal) ||
+                         shortName.StartsWith("CheckYPosition", StringComparison.Ordinal)) &&
+                        action.Params.FirstOrDefault(p => p.Field == "gameObject")?.Value == "owner";
+                    if (isPositionOfOwner ||
+                        !DetectionPrefixes.Any(prefix => shortName.StartsWith(prefix, StringComparison.Ordinal))) {
                         foreach (var parameter in action.Params) {
                             if (parameter.Type == 23 && !string.IsNullOrEmpty(parameter.Value)) {
                                 own.Add(parameter.Value);
@@ -182,6 +216,8 @@ internal static class RoomAnalyzer {
             foreach (var transition in record.GlobalTransitions ?? []) {
                 _globals.Add(Split(transition));
             }
+
+            FightStates.UnionWith(BaseFightStates);
         }
 
         public bool AddSendersOf(HashSet<string> fightEvents) {
@@ -195,7 +231,14 @@ internal static class RoomAnalyzer {
             return changed;
         }
 
-        public void UpdateLeading() {
+        public void Update() {
+            UpdateLeading();
+            UpdateInevitable();
+            UpdateFightReachable();
+            _preFight = FindPreFight();
+        }
+
+        private void UpdateLeading() {
             var sources = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             foreach (var (state, eventName, to) in _transitions) {
                 if (to == null || !IsOwn(state, eventName)) {
@@ -233,24 +276,62 @@ internal static class RoomAnalyzer {
             _leading = new HashSet<string>(steps.Keys, StringComparer.Ordinal);
         }
 
-        public IEnumerable<string> StartEvents() {
-            foreach (var (state, eventName, to) in _transitions) {
-                if (IsStart(state, eventName, to)) {
-                    yield return eventName;
+        /// <summary>
+        /// States from which the fight starts no matter what: all their own transitions go there.
+        /// </summary>
+        private void UpdateInevitable() {
+            var inevitable = new HashSet<string>(FightStates, StringComparer.Ordinal);
+            for (var round = 0; round < MaxSteps; round++) {
+                var added = false;
+                foreach (var state in _stateNames) {
+                    if (inevitable.Contains(state) || !_leading.Contains(state)) {
+                        continue;
+                    }
+
+                    var own = _transitions.Where(t => t.State == state && IsOwn(state, t.Event)).ToList();
+                    if (own.Count > 0 && own.All(t => t.To != null && inevitable.Contains(t.To))) {
+                        added |= inevitable.Add(state);
+                    }
+                }
+
+                if (!added) {
+                    break;
                 }
             }
 
-            foreach (var (eventName, to) in _globals) {
-                if (IsStart(null, eventName, to)) {
-                    yield return eventName;
-                }
-            }
+            _inevitable = inevitable;
         }
 
-        public HashSet<string> PreFightStates() {
+        /// <summary>
+        /// States the FSM can go to once its fight began.
+        /// </summary>
+        private void UpdateFightReachable() {
+            var reachable = new HashSet<string>(FightStates, StringComparer.Ordinal);
+            var queue = new Queue<string>(reachable);
+            while (queue.Count > 0) {
+                var current = queue.Dequeue();
+                foreach (var (state, _, to) in _transitions) {
+                    if (state == current && to != null && _stateNames.Contains(to) && reachable.Add(to)) {
+                        queue.Enqueue(to);
+                    }
+                }
+            }
+
+            _fightReachable = reachable;
+        }
+
+        /// <summary>
+        /// Whether the FSM can wait for its fight in a state: the fight doesn't start from it no matter what, and if it
+        /// might start from it, the fight doesn't come back to it.
+        /// </summary>
+        private bool CanWaitIn(string state) {
+            return !_inevitable.Contains(state) && (!_leading.Contains(state) || !_fightReachable.Contains(state));
+        }
+
+        private HashSet<string> FindPreFight() {
             var preFight = new HashSet<string>(StringComparer.Ordinal);
             var start = Record.StartState;
-            if (string.IsNullOrEmpty(start) || !_stateNames.Contains(start) || FightStates.Contains(start)) {
+            if (string.IsNullOrEmpty(start) || !_stateNames.Contains(start) || !CanWaitIn(start)) {
                 return preFight;
             }
 
@@ -260,7 +341,7 @@ internal static class RoomAnalyzer {
             while (queue.Count > 0) {
                 var current = queue.Dequeue();
                 foreach (var (state, _, to) in _transitions) {
-                    if (state == current && to != null && _stateNames.Contains(to) && !FightStates.Contains(to) &&
+                    if (state == current && to != null && _stateNames.Contains(to) && CanWaitIn(to) &&
                         preFight.Add(to)) {
                         queue.Enqueue(to);
                     }
@@ -270,10 +351,41 @@ internal static class RoomAnalyzer {
             return preFight;
         }
 
-        public List<string> EventStarts(HashSet<string> preFight) {
+        /// <summary>
+        /// Prints every state with its marks (Fight, Leading, Inevitable, Pre-fight, Sub-FSM, Reached from the fight), its
+        /// actions and its
+        /// transitions, with * after events the state sends itself.
+        /// </summary>
+        public void Dump() {
+            foreach (var state in Record.States) {
+                var marks = (FightStates.Contains(state.Name) ? "F" : "") + (_leading.Contains(state.Name) ? "L" : "") +
+                            (_inevitable.Contains(state.Name) ? "I" : "") + (_preFight.Contains(state.Name) ? "P" : "") +
+                            (_subFsmStates.Contains(state.Name) ? "S" : "") +
+                            (_fightReachable.Contains(state.Name) ? "R" : "");
+                var transitions = _transitions.Where(t => t.State == state.Name)
+                    .Select(t => $"{t.Event}{(IsOwn(state.Name, t.Event) ? "*" : "")}->{t.To}");
+                var actions = state.Structured.Select(a => a.Name[(a.Name.LastIndexOf('.') + 1)..]);
+                Console.WriteLine($"         [{marks}] {state.Name}: {string.Join(", ", transitions)}");
+                Console.WriteLine($"             {string.Join(" ", actions)}");
+            }
+
+            foreach (var (eventName, to) in _globals) {
+                Console.WriteLine($"         (global) {eventName}->{to}");
+            }
+        }
+
+        public IEnumerable<string> FightEvents() {
+            foreach (var (state, eventName, to) in _transitions) {
+                if (_preFight.Contains(state) && IsStart(state, eventName, to)) {
+                    yield return eventName;
+                }
+            }
+        }
+
+        public List<string> EventStarts() {
             var starts = new List<string>();
             foreach (var (state, eventName, to) in _transitions) {
-                if (preFight.Contains(state) && IsStart(state, eventName, to)) {
+                if (_preFight.Contains(state) && IsStart(state, eventName, to)) {
                     starts.Add($"{state}/{eventName}");
                 }
             }
@@ -288,12 +400,13 @@ internal static class RoomAnalyzer {
         }
 
         private bool IsStart(string state, string eventName, string to) {
-            return !string.IsNullOrEmpty(eventName) && eventName != Finished && to != null && _leading.Contains(to) &&
-                   (state == null || !IsOwn(state, eventName));
+            return !string.IsNullOrEmpty(eventName) && eventName != Finished && !IsCombatEvent(eventName) &&
+                   to != null && _leading.Contains(to) && (state == null || !IsOwn(state, eventName));
         }
 
         private bool IsOwn(string state, string eventName) {
-            return eventName != null && _ownEvents.TryGetValue(state, out var events) && events.Contains(eventName);
+            return eventName != null && (_subFsmStates.Contains(state) ||
+                                         (_ownEvents.TryGetValue(state, out var events) && events.Contains(eventName)));
         }
     }
 }
