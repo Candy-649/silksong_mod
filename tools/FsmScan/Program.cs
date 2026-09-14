@@ -40,6 +40,11 @@ if (options.TryGetValue("dump", out var dumpClass)) {
     return;
 }
 
+if (options.TryGetValue("layout", out var layoutScenes)) {
+    LayoutDumper.Run(bundleDir, layoutScenes);
+    return;
+}
+
 if (options.TryGetValue("params", out var paramActions)) {
     ActionParams.ActionPattern = new Regex(paramActions);
     ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
