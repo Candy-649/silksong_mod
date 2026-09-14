@@ -12,6 +12,8 @@ using AssetsTools.NET.Extra;
 //
 // Usage: dotnet run -c Release --project tools/FsmScan -- [--bundles <dir>] [--ssmp <repo>] [--audit <sync-audit.json>]
 //            [--out <report.md>] [--filter <bundle path substring>] [--limit <bundle count>]
+//    or: dotnet run -c Release --project tools/FsmScan -- --dump <script class> [--filter <bundle path substring>]
+//            [--fields <regex>]  to print the serialized fields of every MonoBehaviour with that script class
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -23,6 +25,11 @@ var auditPath = options.GetValueOrDefault("audit", @"D:\programming\silksong_mod
 var outPath = options.GetValueOrDefault("out", @"D:\programming\silksong_mod\reports\fsm-usage.md");
 var filter = options.GetValueOrDefault("filter");
 var limit = options.TryGetValue("limit", out var limitText) ? int.Parse(limitText) : 0;
+
+if (options.TryGetValue("dump", out var dumpClass)) {
+    ComponentDumper.Run(bundleDir, filter, dumpClass, options.GetValueOrDefault("fields"));
+    return;
+}
 
 var audit = AuditData.Load(auditPath);
 var registry = EntityRegistryData.Load(ssmpDir);
@@ -526,7 +533,7 @@ internal static class BundleScanner {
     /// <summary>
     /// Maps "assets file name:path ID" of every MonoScript to its class name without namespace.
     /// </summary>
-    private static Dictionary<string, string> LoadScriptNames(AssetsManager manager, string bundleDir) {
+    public static Dictionary<string, string> LoadScriptNames(AssetsManager manager, string bundleDir) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var path in Directory.GetFiles(bundleDir, "*_monoscripts.bundle", SearchOption.TopDirectoryOnly)) {
             var bundle = manager.LoadBundleFile(path, true);
@@ -752,6 +759,125 @@ internal static class BundleScanner {
 
     private static bool HasComponent(GameObjectInfo gameObject, string className) {
         return gameObject != null && gameObject.ComponentClasses.Contains(className);
+    }
+}
+
+/// <summary>
+/// Prints the serialized fields of every MonoBehaviour with a given script class, for looking up tuning values such
+/// as ranges and durations that only exist in the assets.
+/// </summary>
+internal static class ComponentDumper {
+    private const int MaxDepth = 6;
+    private const int MaxArrayItems = 8;
+
+    public static void Run(string bundleDir, string filter, string className, string fieldPattern) {
+        var fieldRegex = fieldPattern == null ? null : new Regex(fieldPattern, RegexOptions.IgnoreCase);
+        var manager = new AssetsManager();
+        var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
+        manager.UnloadAll();
+
+        var paths = Directory.GetFiles(bundleDir, "*.bundle", SearchOption.AllDirectories)
+            .Where(path => filter == null || path.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.Ordinal);
+        var found = 0;
+        foreach (var path in paths) {
+            try {
+                found += DumpBundle(manager, path, bundleDir, scriptNames, className, fieldRegex);
+            } catch (Exception e) {
+                Console.WriteLine($"error in {Path.GetFileName(path)}: {e.GetType().Name}: {e.Message}");
+            } finally {
+                manager.UnloadAll();
+            }
+        }
+
+        Console.WriteLine($"{found} {className} components");
+    }
+
+    private static int DumpBundle(
+        AssetsManager manager,
+        string path,
+        string bundleDir,
+        Dictionary<string, string> scriptNames,
+        string className,
+        Regex fieldRegex
+    ) {
+        var found = 0;
+        var bundle = manager.LoadBundleFile(path, true);
+        for (var i = 0; i < bundle.file.BlockAndDirInfo.DirectoryInfos.Count; i++) {
+            if (!bundle.file.IsAssetsFile(i)) {
+                continue;
+            }
+
+            var instance = manager.LoadAssetsFileFromBundle(bundle, i, false);
+            var monoBehaviours = instance.file.GetAssetsOfType(AssetClassID.MonoBehaviour);
+            if (monoBehaviours.Count == 0) {
+                continue;
+            }
+
+            instance.file.GenerateQuickLookup();
+            var context = new FileContext(manager, instance, scriptNames);
+            foreach (var info in monoBehaviours) {
+                if (context.ScriptClass(info) != className) {
+                    continue;
+                }
+
+                var root = manager.GetBaseField(instance, info);
+                var owner = context.GetGameObject(root.Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
+                var name = owner?.Name ?? root.Get("m_Name")?.AsString ?? "?";
+                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}");
+                Print(root, "", fieldRegex, 0);
+                found++;
+            }
+        }
+
+        return found;
+    }
+
+    private static void Print(AssetTypeValueField field, string path, Regex fieldRegex, int depth) {
+        var valueType = field.Value?.ValueType;
+        if (valueType is not null and not AssetValueType.Array) {
+            if (fieldRegex == null || fieldRegex.IsMatch(path)) {
+                Console.WriteLine($"   {path} = {Format(field)}");
+            }
+
+            return;
+        }
+
+        if (depth >= MaxDepth) {
+            return;
+        }
+
+        if (valueType == AssetValueType.Array) {
+            var count = field.Children.Count;
+            if (count > 0 && (fieldRegex == null || fieldRegex.IsMatch(path))) {
+                Console.WriteLine($"   {path} (count {count})");
+            }
+
+            for (var i = 0; i < Math.Min(count, MaxArrayItems); i++) {
+                Print(field.Children[i], $"{path}[{i}]", fieldRegex, depth + 1);
+            }
+
+            return;
+        }
+
+        foreach (var child in field.Children) {
+            // Unity wraps every list in a field called "Array"; leave that level out of the path
+            var childPath = child.FieldName == "Array" ? path
+                : path.Length == 0 ? child.FieldName
+                : $"{path}.{child.FieldName}";
+            Print(child, childPath, fieldRegex, depth + 1);
+        }
+    }
+
+    private static string Format(AssetTypeValueField field) {
+        return field.Value.ValueType switch {
+            AssetValueType.String => $"\"{field.AsString}\"",
+            AssetValueType.Bool => field.AsBool.ToString(),
+            AssetValueType.Float => field.AsFloat.ToString("R"),
+            AssetValueType.Double => field.AsDouble.ToString("R"),
+            AssetValueType.ByteArray => $"<{field.AsByteArray.Length} bytes>",
+            _ => field.AsLong.ToString(),
+        };
     }
 }
 
