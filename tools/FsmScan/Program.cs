@@ -28,6 +28,12 @@ var auditPath = options.GetValueOrDefault("audit", @"D:\programming\silksong_mod
 var outPath = options.GetValueOrDefault("out", @"D:\programming\silksong_mod\reports\fsm-usage.md");
 var filter = options.GetValueOrDefault("filter");
 var limit = options.TryGetValue("limit", out var limitText) ? int.Parse(limitText) : 0;
+if (options.TryGetValue("items", out var itemsText)) {
+    ComponentDumper.MaxArrayItems = int.Parse(itemsText);
+}
+if (options.TryGetValue("depth", out var depthText)) {
+    ComponentDumper.MaxDepth = int.Parse(depthText);
+}
 
 if (options.TryGetValue("dump", out var dumpClass)) {
     ComponentDumper.Run(bundleDir, filter, dumpClass, options.GetValueOrDefault("fields"));
@@ -787,8 +793,8 @@ internal static class BundleScanner {
 /// as ranges and durations that only exist in the assets.
 /// </summary>
 internal static class ComponentDumper {
-    private const int MaxDepth = 6;
-    private const int MaxArrayItems = 8;
+    public static int MaxDepth = 6;
+    public static int MaxArrayItems = 8;
 
     public static void Run(string bundleDir, string filter, string className, string fieldPattern) {
         var fieldRegex = fieldPattern == null ? null : new Regex(fieldPattern, RegexOptions.IgnoreCase);
