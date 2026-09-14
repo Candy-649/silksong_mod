@@ -922,6 +922,7 @@ internal static class ActionParams {
 
     private const int MaxCombinations = 15;
     private const int MaxExamples = 4;
+    private const int MaxTemplates = 6;
 
     public static Regex ActionPattern;
     public static Regex FieldPattern;
@@ -961,7 +962,7 @@ internal static class ActionParams {
                 }
             }
 
-            result.Add(string.Intern($"{actionName[(actionName.LastIndexOf('.') + 1)..]}: {string.Join(", ", values)}"));
+            result.Add(string.Intern($"{ShortName(actionName)}: {string.Join(", ", values)}"));
         }
 
         return result;
@@ -990,7 +991,29 @@ internal static class ActionParams {
                 Console.WriteLine($"  ... {combinations.Count - MaxCombinations} more combinations");
             }
         }
+
+        // Sub-FSMs started with RunFSM come from templates that no FSM record points at, so print the whole templates
+        // that use the actions, with each state's transitions and strings (which include animation clip names)
+        foreach (var template in scan.Templates.Values.Where(t => t.States.Any(s => s.Params.Count > 0)).Take(MaxTemplates)) {
+            Console.WriteLine($"== template {template.Name}: {template.States.Count} states");
+            foreach (var state in template.States) {
+                Console.WriteLine($"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}");
+                if (state.Params.Count > 0) {
+                    Console.WriteLine($"      params: {string.Join("; ", state.Params)}");
+                }
+
+                if (state.Transitions.Count > 0) {
+                    Console.WriteLine($"      transitions: {string.Join("; ", state.Transitions)}");
+                }
+
+                if (state.Strings.Count > 0) {
+                    Console.WriteLine($"      strings: {string.Join("; ", state.Strings)}");
+                }
+            }
+        }
     }
+
+    private static string ShortName(string typeName) => typeName[(typeName.LastIndexOf('.') + 1)..];
 
     private static string Value(AssetTypeValueField actionData, ParamType type, int position) {
         switch (type) {
