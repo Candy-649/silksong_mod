@@ -37,6 +37,7 @@ if (options.TryGetValue("dump", out var dumpClass)) {
 if (options.TryGetValue("params", out var paramActions)) {
     ActionParams.ActionPattern = new Regex(paramActions);
     ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
+    ActionParams.FsmPattern = options.TryGetValue("fsm", out var paramFsms) ? new Regex(paramFsms) : null;
 }
 
 var audit = AuditData.Load(auditPath);
@@ -927,6 +928,9 @@ internal static class ActionParams {
     public static Regex ActionPattern;
     public static Regex FieldPattern;
 
+    // Limits the printed actions to FSMs with a matching name, and prefixes each combination with its state
+    public static Regex FsmPattern;
+
     /// <summary>
     /// One "Action: field=value, ..." line per enabled action matching ActionPattern. PlayMaker keeps the parameters
     /// of all actions in a state in shared arrays: paramName, paramDataType and paramDataPos from the action's
@@ -974,13 +978,16 @@ internal static class ActionParams {
     /// </summary>
     public static void Print(ScanResult scan) {
         var uses = scan.Fsms
-            .SelectMany(record => record.States.SelectMany(state => state.Params.Select(line => (Record: record, Line: line))))
+            .Where(record => FsmPattern == null || FsmPattern.IsMatch(record.FsmName ?? ""))
+            .SelectMany(record => record.States.SelectMany(state => state.Params.Select(line =>
+                (Record: record, Line: FsmPattern == null ? line : $"[{state.Name}] {line}"))))
             .ToList();
+        var maxCombinations = FsmPattern == null ? MaxCombinations : 200;
         foreach (var category in uses.GroupBy(use => use.Record.Category).OrderByDescending(group => group.Count())) {
             var objects = category.Select(use => use.Record.ObjectName).Distinct().Count();
             var combinations = category.GroupBy(use => use.Line).OrderByDescending(group => group.Count()).ToList();
             Console.WriteLine($"== {category.Key}: {category.Count()} actions on {objects} objects");
-            foreach (var combination in combinations.Take(MaxCombinations)) {
+            foreach (var combination in combinations.Take(maxCombinations)) {
                 var examples = combination.Select(use => use.Record.EntityType ?? use.Record.ObjectName).Distinct();
                 Console.WriteLine(
                     $"  {combination.Count(),6}  {combination.Key}  e.g. {string.Join("; ", examples.Take(MaxExamples))}"
