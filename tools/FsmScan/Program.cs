@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
@@ -14,6 +15,8 @@ using AssetsTools.NET.Extra;
 //            [--out <report.md>] [--filter <bundle path substring>] [--limit <bundle count>]
 //    or: dotnet run -c Release --project tools/FsmScan -- --dump <script class> [--filter <bundle path substring>]
 //            [--fields <regex>]  to print the serialized fields of every MonoBehaviour with that script class
+//    or: dotnet run -c Release --project tools/FsmScan -- --params <action type regex> [--fields <regex>]
+//            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -31,6 +34,11 @@ if (options.TryGetValue("dump", out var dumpClass)) {
     return;
 }
 
+if (options.TryGetValue("params", out var paramActions)) {
+    ActionParams.ActionPattern = new Regex(paramActions);
+    ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
+}
+
 var audit = AuditData.Load(auditPath);
 var registry = EntityRegistryData.Load(ssmpDir);
 Console.WriteLine(
@@ -39,6 +47,11 @@ Console.WriteLine(
 );
 
 var scan = BundleScanner.Run(bundleDir, filter, limit, registry);
+if (ActionParams.ActionPattern != null) {
+    ActionParams.Print(scan);
+    return;
+}
+
 var analysis = Analysis.Build(scan, audit);
 
 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)));
@@ -245,7 +258,13 @@ internal sealed record BundleRef(string Path, string Rel, long Size);
 /// One FSM state: its enabled actions (full type names), its transitions ("EVENT->State") and the string parameters
 /// of its actions, which include the names of events and FSMs the actions send to.
 /// </summary>
-internal sealed record StateData(string Name, List<string> Actions, List<string> Transitions, List<string> Strings);
+internal sealed record StateData(string Name, List<string> Actions, List<string> Transitions, List<string> Strings) {
+    /// <summary>
+    /// Decoded parameters of the enabled actions picked with --params, one "Action: field=value, ..." line each.
+    /// </summary>
+    [JsonIgnore]
+    public List<string> Params { get; init; } = new();
+}
 
 internal sealed class GameObjectInfo {
     public long PathId;
@@ -667,7 +686,7 @@ internal static class BundleScanner {
                 actions,
                 ReadTransitions(state.Get("transitions", "Array")),
                 strings
-            ));
+            ) { Params = ActionParams.Read(state.Get("actionData")) });
         }
 
         return states;
@@ -879,6 +898,164 @@ internal static class ComponentDumper {
             _ => field.AsLong.ToString(),
         };
     }
+}
+
+/// <summary>
+/// Decodes the serialized parameters of chosen FSM action types for --params, e.g. which events
+/// CheckHeroPerformanceRegion sends for the inner and outer needolin range, and counts them per FSM category.
+/// </summary>
+internal static class ActionParams {
+    // HutongGames.PlayMaker.ParamDataType values, read from PlayMaker.dll
+    private enum ParamType {
+        Integer = 0,
+        Boolean = 1,
+        Float = 2,
+        String = 3,
+        Enum = 7,
+        FsmFloat = 15,
+        FsmInt = 16,
+        FsmBool = 17,
+        FsmString = 18,
+        FsmOwnerDefault = 20,
+        FsmEvent = 23,
+    }
+
+    private const int MaxCombinations = 15;
+    private const int MaxExamples = 4;
+
+    public static Regex ActionPattern;
+    public static Regex FieldPattern;
+
+    /// <summary>
+    /// One "Action: field=value, ..." line per enabled action matching ActionPattern. PlayMaker keeps the parameters
+    /// of all actions in a state in shared arrays: paramName, paramDataType and paramDataPos from the action's
+    /// actionStartIndex on, with each value at paramDataPos in the array for its type.
+    /// </summary>
+    public static List<string> Read(AssetTypeValueField actionData) {
+        var result = new List<string>();
+        var names = actionData?.Get("actionNames", "Array");
+        var enabled = actionData?.Get("actionEnabled", "Array");
+        var starts = actionData?.Get("actionStartIndex", "Array");
+        var fieldNames = actionData?.Get("paramName", "Array");
+        var types = actionData?.Get("paramDataType", "Array");
+        var positions = actionData?.Get("paramDataPos", "Array");
+        if (ActionPattern == null || names == null || starts == null || fieldNames == null || types == null ||
+            positions == null) {
+            return result;
+        }
+
+        for (var i = 0; i < names.Children.Count && i < starts.Children.Count; i++) {
+            var actionName = names.Children[i].AsString;
+            if (!ActionPattern.IsMatch(actionName) ||
+                (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool)) {
+                continue;
+            }
+
+            var end = i + 1 < starts.Children.Count ? starts.Children[i + 1].AsInt : fieldNames.Children.Count;
+            var values = new List<string>();
+            for (var p = starts.Children[i].AsInt; p < end && p < fieldNames.Children.Count; p++) {
+                var fieldName = fieldNames.Children[p].AsString;
+                if (FieldPattern == null || FieldPattern.IsMatch(fieldName)) {
+                    var type = (ParamType) types.Children[p].AsInt;
+                    values.Add($"{fieldName}={Value(actionData, type, positions.Children[p].AsInt)}");
+                }
+            }
+
+            result.Add(string.Intern($"{actionName[(actionName.LastIndexOf('.') + 1)..]}: {string.Join(", ", values)}"));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Per FSM category, how many matching actions there are and their most common parameter combinations, with
+    /// example entity types or object names.
+    /// </summary>
+    public static void Print(ScanResult scan) {
+        var uses = scan.Fsms
+            .SelectMany(record => record.States.SelectMany(state => state.Params.Select(line => (Record: record, Line: line))))
+            .ToList();
+        foreach (var category in uses.GroupBy(use => use.Record.Category).OrderByDescending(group => group.Count())) {
+            var objects = category.Select(use => use.Record.ObjectName).Distinct().Count();
+            var combinations = category.GroupBy(use => use.Line).OrderByDescending(group => group.Count()).ToList();
+            Console.WriteLine($"== {category.Key}: {category.Count()} actions on {objects} objects");
+            foreach (var combination in combinations.Take(MaxCombinations)) {
+                var examples = combination.Select(use => use.Record.EntityType ?? use.Record.ObjectName).Distinct();
+                Console.WriteLine(
+                    $"  {combination.Count(),6}  {combination.Key}  e.g. {string.Join("; ", examples.Take(MaxExamples))}"
+                );
+            }
+
+            if (combinations.Count > MaxCombinations) {
+                Console.WriteLine($"  ... {combinations.Count - MaxCombinations} more combinations");
+            }
+        }
+    }
+
+    private static string Value(AssetTypeValueField actionData, ParamType type, int position) {
+        switch (type) {
+            case ParamType.FsmEvent:
+            case ParamType.String:
+                return Quote(Item(actionData, "stringParams", position)?.AsString);
+            case ParamType.FsmString:
+                return Variable(Item(actionData, "fsmStringParams", position), value => Quote(value.AsString));
+            case ParamType.FsmBool:
+                return Variable(Item(actionData, "fsmBoolParams", position), value => value.AsBool.ToString());
+            case ParamType.FsmFloat:
+                return Variable(Item(actionData, "fsmFloatParams", position), value => value.AsFloat.ToString("R"));
+            case ParamType.FsmInt:
+                return Variable(Item(actionData, "fsmIntParams", position), value => value.AsInt.ToString());
+            case ParamType.FsmOwnerDefault:
+                // OwnerDefaultOption: 0 is UseOwner, 1 is SpecifyGameObject
+                return Item(actionData, "fsmOwnerDefaultParams", position)?.Get("ownerOption")?.AsInt switch {
+                    null => "<missing>",
+                    0 => "owner",
+                    _ => "gameObject",
+                };
+            case ParamType.Boolean:
+                return Bytes(actionData, position, 1) is { } flag ? (flag[0] != 0).ToString() : "<missing>";
+            case ParamType.Float:
+                return Bytes(actionData, position, 4) is { } single ? BitConverter.ToSingle(single).ToString("R") : "<missing>";
+            case ParamType.Integer:
+            case ParamType.Enum:
+                return Bytes(actionData, position, 4) is { } number ? BitConverter.ToInt32(number).ToString() : "<missing>";
+            default:
+                return $"<type {(int) type}>";
+        }
+    }
+
+    private static AssetTypeValueField Item(AssetTypeValueField actionData, string arrayName, int position) {
+        var array = actionData.Get(arrayName, "Array");
+        return array != null && position >= 0 && position < array.Children.Count ? array.Children[position] : null;
+    }
+
+    private static string Variable(AssetTypeValueField variable, Func<AssetTypeValueField, string> format) {
+        if (variable == null) {
+            return "<missing>";
+        }
+
+        var name = variable.Get("name")?.AsString;
+        if (variable.Get("useVariable")?.AsBool == true && !string.IsNullOrEmpty(name)) {
+            return $"var {name}";
+        }
+
+        var value = variable.Get("value");
+        return value == null ? "<missing>" : format(value);
+    }
+
+    private static byte[] Bytes(AssetTypeValueField actionData, int position, int count) {
+        var array = actionData.Get("byteData", "Array");
+        if (array == null) {
+            return null;
+        }
+
+        var bytes = array.Value?.ValueType == AssetValueType.ByteArray
+            ? array.AsByteArray
+            : array.Children.Select(child => (byte) child.AsInt).ToArray();
+        return position >= 0 && position + count <= bytes.Length ? bytes[position..(position + count)] : null;
+    }
+
+    private static string Quote(string value) => value == null ? "<missing>" : $"\"{value}\"";
 }
 
 internal sealed class ActionUse {
