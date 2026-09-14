@@ -45,6 +45,11 @@ if (options.TryGetValue("layout", out var layoutScenes)) {
     return;
 }
 
+if (options.TryGetValue("rooms", out var roomScenes)) {
+    RoomAnalyzer.Run(bundleDir, roomScenes, ssmpDir);
+    return;
+}
+
 if (options.TryGetValue("params", out var paramActions)) {
     ActionParams.ActionPattern = new Regex(paramActions);
     ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
@@ -276,7 +281,23 @@ internal sealed record StateData(string Name, List<string> Actions, List<string>
     /// </summary>
     [JsonIgnore]
     public List<string> Params { get; init; } = new();
+
+    /// <summary>
+    /// The parameters of every enabled action, read only for --rooms.
+    /// </summary>
+    [JsonIgnore]
+    public List<ActionParamsData> Structured { get; init; } = new();
 }
+
+/// <summary>
+/// One enabled action of a state with its parameters.
+/// </summary>
+internal sealed record ActionParamsData(string Name, List<ParamValue> Params);
+
+/// <summary>
+/// One parameter of an action: its field, its PlayMaker parameter type, and its value, or null for variables.
+/// </summary>
+internal sealed record ParamValue(string Field, int Type, string Value);
 
 internal sealed class GameObjectInfo {
     public long PathId;
@@ -296,6 +317,8 @@ internal sealed class FsmRecord {
     public string FsmName;
     public string TemplateKey;
     public string TemplateName;
+    public string StartState;
+    public bool InArena;
     public List<StateData> States;
     public List<string> GlobalTransitions;
     public string Category;
@@ -306,6 +329,7 @@ internal sealed class FsmRecord {
 
 internal sealed class TemplateRecord {
     public string Name;
+    public string StartState;
     public List<StateData> States;
     public List<string> GlobalTransitions;
 }
@@ -510,17 +534,7 @@ internal static class BundleScanner {
             }
         }
 
-        foreach (var record in result.Fsms.Where(r => r.TemplateKey != null)) {
-            // PlayMakerFSM.InitTemplate swaps the component's own FSM for a copy of the template's
-            if (result.Templates.TryGetValue(record.TemplateKey, out var template)) {
-                record.States = template.States;
-                record.GlobalTransitions = template.GlobalTransitions;
-                record.TemplateName = template.Name;
-                result.TemplateAttributions++;
-            } else {
-                result.UnresolvedTemplates++;
-            }
-        }
+        ResolveTemplates(result);
 
         var entityScenes = result.Fsms.Where(r => r.Category == "entity" && r.Scene != null).Select(r => r.Scene).ToHashSet();
         foreach (var record in result.Fsms) {
@@ -532,6 +546,24 @@ internal static class BundleScanner {
             $"{result.Templates.Count} templates, {result.Errors.Count} errors"
         );
         return result;
+    }
+
+    /// <summary>
+    /// Gives the FSMs that use a template the states of their template.
+    /// </summary>
+    internal static void ResolveTemplates(ScanResult result) {
+        foreach (var record in result.Fsms.Where(r => r.TemplateKey != null)) {
+            // PlayMakerFSM.InitTemplate swaps the component's own FSM for a copy of the template's
+            if (result.Templates.TryGetValue(record.TemplateKey, out var template)) {
+                record.States = template.States;
+                record.GlobalTransitions = template.GlobalTransitions;
+                record.TemplateName = template.Name;
+                record.StartState = template.StartState;
+                result.TemplateAttributions++;
+            } else {
+                result.UnresolvedTemplates++;
+            }
+        }
     }
 
     private static string PrefixOf(string rel) {
@@ -583,6 +615,21 @@ internal static class BundleScanner {
         return map;
     }
 
+    /// <summary>
+    /// Scans the bundle at a path, for modes that pick their own bundles.
+    /// </summary>
+    internal static void ScanBundleAt(
+        AssetsManager manager,
+        string bundleDir,
+        string path,
+        Dictionary<string, string> scriptNames,
+        EntityRegistryData registry,
+        ScanResult result
+    ) {
+        var rel = Path.GetRelativePath(bundleDir, path).Replace(Path.DirectorySeparatorChar, '/');
+        ScanBundle(manager, new BundleRef(path, rel, new FileInfo(path).Length), scriptNames, registry, result);
+    }
+
     private static void ScanBundle(
         AssetsManager manager,
         BundleRef bundleRef,
@@ -632,6 +679,7 @@ internal static class BundleScanner {
                 if (className == "FsmTemplate") {
                     result.Templates[$"{instance.name}:{info.PathId}"] = new TemplateRecord {
                         Name = root["m_Name"].AsString,
+                        StartState = fsm.Get("startState")?.AsString,
                         States = ReadStates(fsm),
                         GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                     };
@@ -644,6 +692,7 @@ internal static class BundleScanner {
                     Scene = scene,
                     GameObjectPathId = root["m_GameObject"]["m_PathID"].AsLong,
                     FsmName = fsm.Get("name")?.AsString ?? "?",
+                    StartState = fsm.Get("startState")?.AsString,
                     States = ReadStates(fsm),
                     GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                 };
@@ -698,7 +747,10 @@ internal static class BundleScanner {
                 actions,
                 ReadTransitions(state.Get("transitions", "Array")),
                 strings
-            ) { Params = ActionParams.Read(state.Get("actionData")) });
+            ) {
+                Params = ActionParams.Read(state.Get("actionData")),
+                Structured = ActionParams.ReadStructured(state.Get("actionData"))
+            });
         }
 
         return states;
@@ -747,6 +799,7 @@ internal static class BundleScanner {
             var ancestors = context.Ancestors(gameObject);
             record.ObjectName = gameObject?.Name ?? "?";
             record.ObjectPath = string.Join("/", ancestors.AsEnumerable().Reverse().Select(a => a.Name).Append(record.ObjectName));
+            record.InArena = HasComponent(gameObject, "BattleScene") || ancestors.Any(a => HasComponent(a, "BattleScene"));
 
             // SSMP never registers corpses, see EntityManager.CollectEntityCandidates
             if (kind == "corpse" || IsCorpse(gameObject) || ancestors.Any(IsCorpse)) {
@@ -941,6 +994,52 @@ internal static class ActionParams {
 
     // Limits the printed actions to FSMs with a matching name, and prefixes each combination with its state
     public static Regex FsmPattern;
+
+    // Whether ReadStructured reads the parameters of every action, for --rooms
+    public static bool ReadStructuredParams;
+
+    /// <summary>
+    /// The parameters of every enabled action of a state, when ReadStructuredParams is set.
+    /// </summary>
+    public static List<ActionParamsData> ReadStructured(AssetTypeValueField actionData) {
+        var result = new List<ActionParamsData>();
+        var names = actionData?.Get("actionNames", "Array");
+        var enabled = actionData?.Get("actionEnabled", "Array");
+        var starts = actionData?.Get("actionStartIndex", "Array");
+        var fieldNames = actionData?.Get("paramName", "Array");
+        var types = actionData?.Get("paramDataType", "Array");
+        var positions = actionData?.Get("paramDataPos", "Array");
+        if (!ReadStructuredParams || names == null || starts == null || fieldNames == null || types == null ||
+            positions == null) {
+            return result;
+        }
+
+        for (var i = 0; i < names.Children.Count && i < starts.Children.Count; i++) {
+            if (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool) {
+                continue;
+            }
+
+            var end = i + 1 < starts.Children.Count ? starts.Children[i + 1].AsInt : fieldNames.Children.Count;
+            var parameters = new List<ParamValue>();
+            for (var p = starts.Children[i].AsInt; p < end && p < fieldNames.Children.Count; p++) {
+                var type = (ParamType) types.Children[p].AsInt;
+                var position = positions.Children[p].AsInt;
+                var value = type switch {
+                    ParamType.FsmEvent or ParamType.String => Item(actionData, "stringParams", position)?.AsString,
+                    ParamType.FsmString => Item(actionData, "fsmStringParams", position) is { } variable &&
+                                           variable.Get("useVariable")?.AsBool != true
+                        ? variable.Get("value")?.AsString
+                        : null,
+                    _ => Value(actionData, type, position),
+                };
+                parameters.Add(new ParamValue(fieldNames.Children[p].AsString, (int) type, value));
+            }
+
+            result.Add(new ActionParamsData(names.Children[i].AsString, parameters));
+        }
+
+        return result;
+    }
 
     /// <summary>
     /// One "Action: field=value, ..." line per enabled action matching ActionPattern. PlayMaker keeps the parameters
