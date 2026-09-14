@@ -38,10 +38,13 @@ Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)));
 File.WriteAllText(outPath, ReportWriter.Markdown(analysis, scan, audit, registry, bundleDir), new UTF8Encoding(false));
 var jsonPath = Path.ChangeExtension(outPath, ".json");
 File.WriteAllText(jsonPath, ReportWriter.Json(analysis), new UTF8Encoding(false));
+var indexPath = Path.ChangeExtension(outPath, ".tsv");
+ReportWriter.WriteIndex(analysis, indexPath);
 
 ReportWriter.PrintSummary(analysis, scan);
 Console.WriteLine($"Markdown: {outPath}");
 Console.WriteLine($"JSON:     {jsonPath}");
+Console.WriteLine($"Index:    {indexPath}");
 
 internal static class Cli {
     public static Dictionary<string, string> Parse(string[] args) {
@@ -231,7 +234,11 @@ internal sealed class EntityRegistryData {
 
 internal sealed record BundleRef(string Path, string Rel, long Size);
 
-internal sealed record StateActions(string Name, List<string> Actions);
+/// <summary>
+/// One FSM state: its enabled actions (full type names), its transitions ("EVENT->State") and the string parameters
+/// of its actions, which include the names of events and FSMs the actions send to.
+/// </summary>
+internal sealed record StateData(string Name, List<string> Actions, List<string> Transitions, List<string> Strings);
 
 internal sealed class GameObjectInfo {
     public long PathId;
@@ -251,7 +258,8 @@ internal sealed class FsmRecord {
     public string FsmName;
     public string TemplateKey;
     public string TemplateName;
-    public List<StateActions> States;
+    public List<StateData> States;
+    public List<string> GlobalTransitions;
     public string Category;
     public string EntityType;
     public string EntityObject;
@@ -260,7 +268,8 @@ internal sealed class FsmRecord {
 
 internal sealed class TemplateRecord {
     public string Name;
-    public List<StateActions> States;
+    public List<StateData> States;
+    public List<string> GlobalTransitions;
 }
 
 internal sealed class ScanResult {
@@ -467,6 +476,7 @@ internal static class BundleScanner {
             // PlayMakerFSM.InitTemplate swaps the component's own FSM for a copy of the template's
             if (result.Templates.TryGetValue(record.TemplateKey, out var template)) {
                 record.States = template.States;
+                record.GlobalTransitions = template.GlobalTransitions;
                 record.TemplateName = template.Name;
                 result.TemplateAttributions++;
             } else {
@@ -585,6 +595,7 @@ internal static class BundleScanner {
                     result.Templates[$"{instance.name}:{info.PathId}"] = new TemplateRecord {
                         Name = root["m_Name"].AsString,
                         States = ReadStates(fsm),
+                        GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                     };
                     continue;
                 }
@@ -596,6 +607,7 @@ internal static class BundleScanner {
                     GameObjectPathId = root["m_GameObject"]["m_PathID"].AsLong,
                     FsmName = fsm.Get("name")?.AsString ?? "?",
                     States = ReadStates(fsm),
+                    GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                 };
 
                 var template = root.Get("fsmTemplate");
@@ -617,10 +629,10 @@ internal static class BundleScanner {
     private static string FileNameOrUnknown(FileContext context, int fileId) => context.FileNameOf(fileId) ?? "?";
 
     /// <summary>
-    /// Reads each state's enabled actions as full type names.
+    /// Reads each state's enabled actions as full type names, its transitions and its actions' string parameters.
     /// </summary>
-    private static List<StateActions> ReadStates(AssetTypeValueField fsm) {
-        var states = new List<StateActions>();
+    private static List<StateData> ReadStates(AssetTypeValueField fsm) {
+        var states = new List<StateData>();
         var stateArray = fsm.Get("states", "Array");
         if (stateArray == null) {
             return states;
@@ -638,10 +650,48 @@ internal static class BundleScanner {
                 actions.Add(string.Intern(names.Children[i].AsString));
             }
 
-            states.Add(new StateActions(state.Get("name")?.AsString ?? "?", actions));
+            // Event parameters are serialized as their names in stringParams, FsmString values in fsmStringParams
+            var strings = new List<string>();
+            AddStrings(strings, state.Get("actionData", "stringParams", "Array"), null);
+            AddStrings(strings, state.Get("actionData", "fsmStringParams", "Array"), "value");
+
+            states.Add(new StateData(
+                state.Get("name")?.AsString ?? "?",
+                actions,
+                ReadTransitions(state.Get("transitions", "Array")),
+                strings
+            ));
         }
 
         return states;
+    }
+
+    private static List<string> ReadTransitions(AssetTypeValueField transitionArray) {
+        var transitions = new List<string>();
+        if (transitionArray == null) {
+            return transitions;
+        }
+
+        foreach (var transition in transitionArray.Children) {
+            var eventName = transition.Get("fsmEvent", "name")?.AsString ?? "?";
+            var toState = transition.Get("toState")?.AsString ?? "?";
+            transitions.Add(string.Intern($"{eventName}->{toState}"));
+        }
+
+        return transitions;
+    }
+
+    private static void AddStrings(List<string> strings, AssetTypeValueField array, string childName) {
+        if (array == null) {
+            return;
+        }
+
+        foreach (var item in array.Children) {
+            var value = childName == null ? item.AsString : item.Get(childName)?.AsString;
+            if (!string.IsNullOrWhiteSpace(value) && !strings.Contains(value)) {
+                strings.Add(string.Intern(value));
+            }
+        }
     }
 
     private static void Classify(FileContext context, List<FsmRecord> records, EntityRegistryData registry, string kind) {
@@ -1075,6 +1125,38 @@ internal static class ReportWriter {
         };
         return JsonSerializer.Serialize(payload, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
+
+    /// <summary>
+    /// Writes one tab-separated line per FSM state, plus one per FSM for its global transitions, so events, states
+    /// and actions across all FSMs can be searched with grep.
+    /// </summary>
+    public static void WriteIndex(Analysis analysis, string path) {
+        using var writer = new StreamWriter(path, false, new UTF8Encoding(false));
+        writer.WriteLine("category\tentity\tplace\tobject\tfsm\tstate\tactions\ttransitions\tstrings");
+        foreach (var record in analysis.Records.Select(r => r.Record)) {
+            var prefix = string.Join(
+                "\t",
+                record.Category,
+                record.EntityType ?? "",
+                Place(record),
+                Clean(record.ObjectPath),
+                Clean(record.FsmName)
+            );
+            if (record.GlobalTransitions is { Count: > 0 }) {
+                writer.WriteLine($"{prefix}\t(global)\t\t{Clean(string.Join("; ", record.GlobalTransitions))}\t");
+            }
+
+            foreach (var state in record.States) {
+                var actions = string.Join(",", state.Actions.Select(a => a[(a.LastIndexOfAny(['.', '+']) + 1)..]));
+                writer.WriteLine(
+                    $"{prefix}\t{Clean(state.Name)}\t{actions}\t{Clean(string.Join("; ", state.Transitions))}\t" +
+                    Clean(string.Join("; ", state.Strings))
+                );
+            }
+        }
+    }
+
+    private static string Clean(string text) => text?.Replace('\t', ' ').Replace('\n', ' ').Replace('\r', ' ') ?? "";
 
     public static void PrintSummary(Analysis analysis, ScanResult scan) {
         Console.WriteLine(

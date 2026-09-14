@@ -12,6 +12,8 @@ using System.Reflection.PortableExecutable;
 //   4) IL listings of "Type::Method" targets, or "Type::*" for all methods of a type (args override the defaults)
 // Callers mode: --callers Type::method ...  (prefix "!" to list callers without IL context)
 //   lists methods calling the given APIs and prints IL context around each call
+// Find mode: --find text ...  lists types, fields and methods whose names contain any text (case-insensitive)
+// Strings mode: --strings text ...  lists methods with string literals containing any text (case-insensitive)
 
 const string Managed = @"D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed";
 const int ContextBefore = 14;
@@ -23,8 +25,12 @@ var listOnlyTargets = new HashSet<string>(callerArgs.Where(a => a.StartsWith('!'
 var callerTargets = new HashSet<string>(callerArgs.Select(a => a.TrimStart('!')));
 var callerHits = new List<string>();
 var callerSnippets = new List<string>();
+var findMode = args.Length > 0 && args[0] == "--find";
+var stringsMode = args.Length > 0 && args[0] == "--strings";
+var searchTerms = findMode || stringsMode ? args.Skip(1).ToList() : new List<string>();
+var searchHits = new List<string>();
 
-var dumpTargets = callersMode
+var dumpTargets = callersMode || findMode || stringsMode
     ? Array.Empty<string>()
     : args.Length > 0
         ? args
@@ -91,6 +97,23 @@ foreach (var file in files)
         }
         var (outerFull, outerSimple) = OuterType(md, th);
 
+        if (findMode)
+        {
+            var displayName = isTopLevel ? fullName : $"{outerFull}/{simpleName}";
+            if (Matches(simpleName)) searchHits.Add($"type    {displayName}  ({Path.GetFileName(file)})");
+            foreach (var fh in td.GetFields())
+            {
+                var fieldName = md.GetString(md.GetFieldDefinition(fh).Name);
+                if (Matches(fieldName)) searchHits.Add($"field   {displayName}::{fieldName}");
+            }
+            foreach (var mh in td.GetMethods())
+            {
+                var name = md.GetString(md.GetMethodDefinition(mh).Name);
+                if (Matches(name)) searchHits.Add($"method  {displayName}::{name}");
+            }
+            continue;
+        }
+
         foreach (var mh in td.GetMethods())
         {
             var m = md.GetMethodDefinition(mh);
@@ -138,6 +161,11 @@ foreach (var file in files)
                     int n = BitConverter.ToInt32(il, i);
                     i += 4 + 4 * n;
                     continue;
+                }
+                if (stringsMode && oc.OperandType == OperandType.InlineString)
+                {
+                    var text = md.GetUserString(MetadataTokens.UserStringHandle(BitConverter.ToInt32(il, i) & 0xFFFFFF));
+                    if (Matches(text)) searchHits.Add($"string  {outerFull}::{methodName}  \"{text}\"");
                 }
                 if (oc.OperandType == OperandType.InlineMethod)
                 {
@@ -200,6 +228,8 @@ foreach (var file in files)
     }
 }
 
+bool Matches(string text) => searchTerms.Any(t => text.Contains(t, StringComparison.OrdinalIgnoreCase));
+
 bool IsAction(string simple)
 {
     var seen = new HashSet<string>();
@@ -210,6 +240,14 @@ bool IsAction(string simple)
         cur = baseOf.TryGetValue(cur, out var b) ? b : null;
     }
     return false;
+}
+
+if (findMode || stringsMode)
+{
+    var hits = searchHits.Distinct().ToList();
+    Console.WriteLine($"== {(findMode ? "Names" : "String literals")} containing {string.Join(", ", searchTerms)}: {hits.Count} ==");
+    hits.ForEach(Console.WriteLine);
+    return;
 }
 
 if (callersMode)

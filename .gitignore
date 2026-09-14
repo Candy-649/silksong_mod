@@ -7,3 +7,4 @@ obj/
 
 # Generated evidence dumps (regenerate with the tools)
 reports/*.json
+reports/*.tsv
