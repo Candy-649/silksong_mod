@@ -1042,6 +1042,20 @@ internal static class ActionParams {
             case ParamType.Integer:
             case ParamType.Enum:
                 return Bytes(actionData, position, 4) is { } number ? BitConverter.ToInt32(number).ToString() : "<missing>";
+            case (ParamType) 19:
+                return Variable(Item(actionData, "fsmGameObjectParams", position), _ => "<object>");
+            case (ParamType) 28:
+                return Variable(Item(actionData, "fsmVector3Params", position), value =>
+                    $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R}, {value.Get("z")?.AsFloat:R})");
+            case (ParamType) 37:
+                return Variable(Item(actionData, "fsmVector2Params", position), value =>
+                    $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R})");
+            case (ParamType) 21:
+                // FunctionCall, as used by SendMessage, is serialized whole in functionCallParams
+                var functionCall = Item(actionData, "functionCallParams", position);
+                return functionCall == null
+                    ? "<missing>"
+                    : $"{Quote(functionCall.Get("FunctionName")?.AsString)}({Quote(functionCall.Get("parameterType")?.AsString)})";
             default:
                 return $"<type {(int) type}>";
         }
