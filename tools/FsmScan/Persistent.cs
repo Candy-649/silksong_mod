@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 
@@ -32,6 +33,23 @@ internal static class PersistentScanner {
     private static readonly HashSet<string> Classes = new(StringComparer.Ordinal) {
         "PersistentBoolItem", "PersistentIntItem", "GeoRock",
     };
+
+    /// <summary>
+    /// FSM actions that write the player data, whose parameters the TSV lists.
+    /// </summary>
+    private static readonly Regex PlayerDataAction = new(
+        @"^(SetPlayerData\w*|IncrementPlayerData\w*|DecrementPlayerData\w*|AddPlayerData\w*|PlayerDataVariable\w*)$",
+        RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// The names of the records of the player data about bosses, beaten or met, which the TSV lists wherever an action
+    /// uses them.
+    /// </summary>
+    private static readonly Regex BossRecord = new(
+        @"^(defeated\w+|encountered\w+|\w+Defeated|\w+Encountered)$",
+        RegexOptions.Compiled
+    );
 
     /// <summary>
     /// Adds the saved objects of one assets file of a scene bundle to the scan result.
@@ -84,6 +102,7 @@ internal static class PersistentScanner {
 
     public static void Run(string bundleDir, string filter, EntityRegistryData registry, string outPath) {
         BundleScanner.CollectPersistent = true;
+        ActionParams.ReadStructuredParams = true;
         var scan = BundleScanner.Run(bundleDir, filter ?? "scenes_scenes_scenes", 0, registry);
         var fsmsByObject = scan.Fsms
             .GroupBy(r => (r.Bundle, r.File, r.GameObjectPathId))
@@ -95,20 +114,59 @@ internal static class PersistentScanner {
                 : new List<FsmRecord>();
         }
 
+        static string ShortName(string name) => name[(name.LastIndexOf('.') + 1)..];
+
         static string Actions(List<FsmRecord> fsms) {
             return string.Join(",", fsms
                 .SelectMany(f => f.States ?? new List<StateData>())
                 .SelectMany(s => s.Actions)
-                .Select(a => a[(a.LastIndexOf('.') + 1)..])
+                .Select(ShortName)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(a => a, StringComparer.Ordinal));
+        }
+
+        // Each write of the player data with its parameters, like "SetPlayerDataBool(boolName=x,value=True)". A
+        // parameter that an FSM variable fills in shows the value of the variable in the FSM on the object, or
+        // "var:name" if the FSM doesn't have it
+        static string DataWrites(List<FsmRecord> fsms) {
+            return string.Join(";", fsms
+                .SelectMany(f => (f.States ?? new List<StateData>())
+                    .SelectMany(s => s.Structured ?? new List<ActionParamsData>())
+                    .Where(a => PlayerDataAction.IsMatch(ShortName(a.Name)))
+                    .Select(a => $"{ShortName(a.Name)}({string.Join(",", a.Params.Select(p => $"{p.Field}={ParamText(f, p)}"))})"))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(a => a, StringComparer.Ordinal));
+        }
+
+        static string ParamText(FsmRecord fsm, ParamValue param) {
+            if (param.Variable == null) {
+                return param.Value ?? "<missing>";
+            }
+
+            var key = ActionParams.VariableKey(param.Type, param.Variable);
+            return key != null && fsm.Variables != null && fsm.Variables.TryGetValue(key, out var value)
+                ? value
+                : $"var:{param.Variable}";
+        }
+
+        // The boss records that any action of the FSMs uses, like "defeatedX", for leaving the objects that depend on a
+        // boss out of two-player saves
+        static string Records(List<FsmRecord> fsms) {
+            return string.Join(",", fsms
+                .SelectMany(f => (f.States ?? new List<StateData>())
+                    .SelectMany(s => s.Structured ?? new List<ActionParamsData>())
+                    .SelectMany(a => a.Params.Select(p => ParamText(f, p))))
+                .Where(text => BossRecord.IsMatch(text))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(text => text, StringComparer.Ordinal));
         }
 
         static string Clean(string text) => (text ?? "").Replace('\t', ' ').Replace('\n', ' ').Replace('\r', ' ');
 
         var builder = new StringBuilder();
         builder.AppendLine(
-            "scene\tid\tkind\tsemi\tpath\tcomponents\tparent\tparent_components\tfsms\tcategory\tactions\tparent_fsms\tparent_actions"
+            "scene\tid\tkind\tsemi\tpath\tcomponents\tparent\tparent_components\tfsms\tcategory\tactions\tparent_fsms\t" +
+            "parent_actions\tdata_writes\tparent_data_writes\trecords\tparent_records"
         );
         foreach (var record in scan.Persistent.OrderBy(r => r.Scene, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal)) {
             var fsms = FsmsOf(record, record.GameObjectPathId);
@@ -126,7 +184,11 @@ internal static class PersistentScanner {
                 Clean(fsms.FirstOrDefault()?.Category ?? ""),
                 Clean(Actions(fsms)),
                 Clean(string.Join(",", parentFsms.Select(f => f.FsmName))),
-                Clean(Actions(parentFsms))
+                Clean(Actions(parentFsms)),
+                Clean(DataWrites(fsms)),
+                Clean(DataWrites(parentFsms)),
+                Clean(Records(fsms)),
+                Clean(Records(parentFsms))
             ));
         }
 

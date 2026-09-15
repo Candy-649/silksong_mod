@@ -302,9 +302,10 @@ internal sealed record StateData(string Name, List<string> Actions, List<string>
 internal sealed record ActionParamsData(string Name, List<ParamValue> Params);
 
 /// <summary>
-/// One parameter of an action: its field, its PlayMaker parameter type, and its value, or null for variables.
+/// One parameter of an action: its field, its PlayMaker parameter type, its value, which is null for a string that a
+/// variable fills in, and the name of the FSM variable that fills it in, if any.
 /// </summary>
-internal sealed record ParamValue(string Field, int Type, string Value);
+internal sealed record ParamValue(string Field, int Type, string Value, string Variable = null);
 
 internal sealed class GameObjectInfo {
     public long PathId;
@@ -333,6 +334,10 @@ internal sealed class FsmRecord {
     public string EntityType;
     public string EntityObject;
     public bool InEntityScene;
+
+    // The values of the FSM's own variables by "type:name", with --persistent and --rooms, for the parameters that
+    // variables fill in. A component that uses a template keeps its own variables.
+    public Dictionary<string, string> Variables;
 }
 
 internal sealed class TemplateRecord {
@@ -718,6 +723,10 @@ internal static class BundleScanner {
                     GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                 };
 
+                if (ActionParams.ReadStructuredParams) {
+                    record.Variables = ReadVariables(fsm);
+                }
+
                 var template = root.Get("fsmTemplate");
                 if (template != null && template["m_PathID"].AsLong != 0) {
                     var file = FileNameOrUnknown(context, template["m_FileID"].AsInt);
@@ -735,6 +744,39 @@ internal static class BundleScanner {
     }
 
     private static string FileNameOrUnknown(FileContext context, int fileId) => context.FileNameOf(fileId) ?? "?";
+
+    /// <summary>
+    /// Reads the values of the string, bool, int and float variables of an FSM by "type:name".
+    /// </summary>
+    private static Dictionary<string, string> ReadVariables(AssetTypeValueField fsm) {
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (arrayName, type) in new[] {
+                     ("stringVariables", "string"), ("boolVariables", "bool"), ("intVariables", "int"),
+                     ("floatVariables", "float"),
+                 }) {
+            var array = fsm.Get("variables", arrayName, "Array");
+            if (array == null) {
+                continue;
+            }
+
+            foreach (var variable in array.Children) {
+                var name = variable.Get("name")?.AsString;
+                var value = variable.Get("value");
+                if (string.IsNullOrEmpty(name) || value?.Value == null) {
+                    continue;
+                }
+
+                variables[$"{type}:{name}"] = type switch {
+                    "string" => value.AsString,
+                    "bool" => value.AsBool.ToString(),
+                    "int" => value.AsInt.ToString(),
+                    _ => value.AsFloat.ToString("R"),
+                };
+            }
+        }
+
+        return variables;
+    }
 
     /// <summary>
     /// Reads each state's enabled actions as full type names, its transitions and its actions' string parameters.
@@ -1051,9 +1093,20 @@ internal static class ActionParams {
                                            variable.Get("useVariable")?.AsBool != true
                         ? variable.Get("value")?.AsString
                         : null,
-                    _ => Value(actionData, type, position),
+                    _ => Value(actionData, type, position, p),
                 };
-                parameters.Add(new ParamValue(fieldNames.Children[p].AsString, (int) type, value));
+                string variableName = null;
+                if (type == ParamType.FsmString) {
+                    if (Item(actionData, "fsmStringParams", position) is { } stringVariable &&
+                        stringVariable.Get("useVariable")?.AsBool == true) {
+                        variableName = stringVariable.Get("name")?.AsString;
+                    }
+                } else if (type is not (ParamType.FsmEvent or ParamType.String) &&
+                           value?.StartsWith("var ", StringComparison.Ordinal) == true) {
+                    variableName = value[4..];
+                }
+
+                parameters.Add(new ParamValue(fieldNames.Children[p].AsString, (int) type, value, variableName));
             }
 
             result.Add(new ActionParamsData(names.Children[i].AsString, parameters));
@@ -1093,7 +1146,7 @@ internal static class ActionParams {
                 var fieldName = fieldNames.Children[p].AsString;
                 if (FieldPattern == null || FieldPattern.IsMatch(fieldName)) {
                     var type = (ParamType) types.Children[p].AsInt;
-                    values.Add($"{fieldName}={Value(actionData, type, positions.Children[p].AsInt)}");
+                    values.Add($"{fieldName}={Value(actionData, type, positions.Children[p].AsInt, p)}");
                 }
             }
 
@@ -1153,7 +1206,18 @@ internal static class ActionParams {
 
     private static string ShortName(string typeName) => typeName[(typeName.LastIndexOf('.') + 1)..];
 
-    private static string Value(AssetTypeValueField actionData, ParamType type, int position) {
+    /// <summary>
+    /// The key of a variable in FsmRecord.Variables for a parameter of a type, or null for types without one.
+    /// </summary>
+    public static string VariableKey(int type, string name) => (ParamType) type switch {
+        ParamType.FsmString => $"string:{name}",
+        ParamType.FsmBool => $"bool:{name}",
+        ParamType.FsmInt => $"int:{name}",
+        ParamType.FsmFloat => $"float:{name}",
+        _ => null,
+    };
+
+    private static string Value(AssetTypeValueField actionData, ParamType type, int position, int paramIndex = -1) {
         switch (type) {
             case ParamType.FsmEvent:
             case ParamType.String:
@@ -1161,7 +1225,9 @@ internal static class ActionParams {
             case ParamType.FsmString:
                 return Variable(Item(actionData, "fsmStringParams", position), value => Quote(value.AsString));
             case ParamType.FsmBool:
-                return Variable(Item(actionData, "fsmBoolParams", position), value => value.AsBool.ToString());
+                return Item(actionData, "fsmBoolParams", position) is { } fsmBool
+                    ? Variable(fsmBool, value => value.AsBool.ToString())
+                    : OldFsmBool(actionData, position, paramIndex);
             case ParamType.FsmFloat:
                 return Variable(Item(actionData, "fsmFloatParams", position), value => value.AsFloat.ToString("R"));
             case ParamType.FsmInt:
@@ -1194,6 +1260,8 @@ internal static class ActionParams {
                 return functionCall == null
                     ? "<missing>"
                     : $"{Quote(functionCall.Get("FunctionName")?.AsString)}({Quote(functionCall.Get("parameterType")?.AsString)})";
+            case (ParamType) 39:
+                return FsmVar(Item(actionData, "fsmVarParams", position));
             default:
                 return $"<type {(int) type}>";
         }
@@ -1216,6 +1284,52 @@ internal static class ActionParams {
 
         var value = variable.Get("value");
         return value == null ? "<missing>" : format(value);
+    }
+
+    /// <summary>
+    /// Reads an FsmBool that PlayMaker saved in byteData, as it did before fsmBoolParams: a byte for the value, a byte
+    /// for whether a variable fills it in, and the name of the variable in the rest of the parameter's bytes.
+    /// </summary>
+    private static string OldFsmBool(AssetTypeValueField actionData, int position, int paramIndex) {
+        if (Bytes(actionData, position, 2) is not { } flags) {
+            return "<missing>";
+        }
+
+        if (flags[1] == 0) {
+            return (flags[0] != 0).ToString();
+        }
+
+        var sizes = actionData.Get("paramByteDataSize", "Array");
+        var size = sizes != null && paramIndex >= 0 && paramIndex < sizes.Children.Count
+            ? sizes.Children[paramIndex].AsInt
+            : 0;
+        return size > 2 && Bytes(actionData, position + 2, size - 2) is { } name
+            ? $"var {System.Text.Encoding.UTF8.GetString(name)}"
+            : "<missing>";
+    }
+
+    /// <summary>
+    /// Reads an FsmVar, as SetPlayerDataVariable uses: a value of each type and which of them it holds.
+    /// </summary>
+    private static string FsmVar(AssetTypeValueField fsmVar) {
+        if (fsmVar == null) {
+            return "<missing>";
+        }
+
+        var name = fsmVar.Get("variableName")?.AsString;
+        if (fsmVar.Get("useVariable")?.AsBool == true && !string.IsNullOrEmpty(name)) {
+            return $"var {name}";
+        }
+
+        // VariableType: 0 is Float, 1 is Int, 2 is Bool and 4 is String
+        return fsmVar.Get("type")?.AsInt switch {
+            0 => fsmVar.Get("floatValue")?.AsFloat.ToString("R") ?? "<missing>",
+            1 => fsmVar.Get("intValue")?.AsInt.ToString() ?? "<missing>",
+            2 => fsmVar.Get("boolValue")?.AsBool.ToString() ?? "<missing>",
+            4 => Quote(fsmVar.Get("stringValue")?.AsString),
+            null => "<missing>",
+            var other => $"<variable type {other}>",
+        };
     }
 
     private static byte[] Bytes(AssetTypeValueField actionData, int position, int count) {
