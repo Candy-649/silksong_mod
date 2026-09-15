@@ -16,6 +16,12 @@ using System.Reflection.PortableExecutable;
 // Strings mode: --strings text ...  lists methods with string literals containing any text (case-insensitive)
 
 const string Managed = @"D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed";
+// PlayerData writes mode: --pdwrites [writes.tsv] [reads.tsv]  lists C# writes and reads of PlayerData fields
+if (args.Length > 0 && args[0] == "--pdwrites")
+{
+    PlayerDataWrites.Run(args.Skip(1).ToArray());
+    return;
+}
 const int ContextBefore = 14;
 const int ContextAfter = 4;
 

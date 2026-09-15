@@ -21,6 +21,9 @@ using AssetsTools.NET.Extra;
 //            object in the scenes with the FSMs and FSM actions on it and on its parent
 //    or: dotnet run -c Release --project tools/FsmScan -- --interactions <scenes|all> [--out <interactions.tsv>]
 //            to sort the FSMs that the interact button starts the way two-player saves do
+//    or: dotnet run -c Release --project tools/FsmScan -- --pdflags <out dir> [--filter ...]  to list every FSM action and
+//            serialized component field that writes or reads a PlayerData field, as playerdata-writes.tsv and
+//            playerdata-reads.tsv
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -61,6 +64,11 @@ if (options.TryGetValue("interactions", out var interactionScenes)) {
         ssmpDir,
         options.GetValueOrDefault("out", Path.Combine(Path.GetDirectoryName(auditPath)!, "interactions.tsv"))
     );
+    return;
+}
+
+if (options.TryGetValue("pdflags", out var pdFlagsDir)) {
+    PlayerDataFlagScanner.Run(bundleDir, filter, ssmpDir, pdFlagsDir);
     return;
 }
 
@@ -515,6 +523,11 @@ internal static class BundleScanner {
     /// </summary>
     public static bool CollectPersistent;
 
+    /// <summary>
+    /// Called with the MonoBehaviours of every assets file a scan reads, for --pdflags.
+    /// </summary>
+    public static Action<AssetsManager, AssetsFileInstance, FileContext, List<AssetFileInfo>, BundleRef, string> ComponentCollector;
+
     public static ScanResult Run(string bundleDir, string filter, int limit, EntityRegistryData registry) {
         var result = new ScanResult();
         var manager = new AssetsManager();
@@ -702,6 +715,8 @@ internal static class BundleScanner {
             if (CollectPersistent && scene != null) {
                 PersistentScanner.Collect(manager, instance, context, monoBehaviours, bundleRef, scene, result);
             }
+
+            ComponentCollector?.Invoke(manager, instance, context, monoBehaviours, bundleRef, scene);
 
             var fileRecords = new List<FsmRecord>();
             foreach (var info in monoBehaviours) {

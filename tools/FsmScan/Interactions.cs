@@ -209,7 +209,7 @@ internal static class InteractionAnalyzer {
         return index < 0 ? (transition, null) : (transition[..index], transition[(index + 2)..]);
     }
 
-    private sealed class Graph {
+    internal sealed class Graph {
         public readonly FsmRecord Record;
         public readonly List<string> IdleStates = [];
         public readonly List<string> PromptStates = [];
