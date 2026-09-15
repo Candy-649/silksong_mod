@@ -30,7 +30,8 @@ Each shared int also gets a merge hint: "max" when every write adds a positive a
 Usage: py tools/coop_story_flags.py [reports dir] [coop-story-flags.json]
   reads <reports>/playerdata-fields.tsv, playerdata-writes.tsv, playerdata-reads.tsv, playerdata-quest-targets.tsv,
   playerdata-code-writes.tsv and playerdata-code-reads.tsv, and writes <reports>/coop-story-flags.tsv and the JSON
-  (default <reports>/coop-story-flags.json) with only the shared-world fields: {"Bools": [], "Ints": [], "Strings": []}
+  (default <reports>/coop-story-flags.json) with only the shared-world fields: {"Bools": [], "Ints": [], "Strings": [], "Enums": []}, where Enums has the
+  fields of all other types
 """
 import collections
 import csv
@@ -396,7 +397,7 @@ def example_writers(name):
 
 counts = collections.Counter()
 by_type = collections.defaultdict(collections.Counter)
-shared = {'Bools': [], 'Ints': [], 'Strings': []}
+shared = {'Bools': [], 'Ints': [], 'Strings': [], 'Enums': []}
 with open(os.path.join(reports, 'coop-story-flags.tsv'), 'w', encoding='utf-8', newline='') as out:
     writer = csv.writer(out, delimiter=TAB, lineterminator='\n', quoting=csv.QUOTE_NONE, escapechar='\\')
     writer.writerow(['name', 'type', 'class', 'reason', 'int_merge', 'fsm_writes', 'component_writes', 'code_writes',
@@ -406,9 +407,7 @@ with open(os.path.join(reports, 'coop-story-flags.tsv'), 'w', encoding='utf-8', 
         counts[cls] += 1
         by_type[kind if kind in ('Boolean', 'Int32', 'String') else 'other'][cls] += 1
         if cls == 'shared-world':
-            key = {'Boolean': 'Bools', 'Int32': 'Ints', 'String': 'Strings'}.get(kind)
-            if key:
-                shared[key].append(name)
+            shared[{'Boolean': 'Bools', 'Int32': 'Ints', 'String': 'Strings'}.get(kind, 'Enums')].append(name)
         read = reads.get(name, {})
         writer.writerow([
             name, kind, cls, reason.replace(TAB, ' '), int_merge(name) if kind == 'Int32' else '',
@@ -427,5 +426,6 @@ with open(target, 'w', encoding='utf-8', newline='\n') as out:
 print(dict(counts))
 for kind, classes in sorted(by_type.items()):
     print(f'  {kind}: {dict(classes)}')
-print(f"shared: {len(shared['Bools'])} bools, {len(shared['Ints'])} ints, {len(shared['Strings'])} strings: {target}")
+print(f"shared: {len(shared['Bools'])} bools, {len(shared['Ints'])} ints, {len(shared['Strings'])} strings, "
+      f"{len(shared['Enums'])} of other types: {target}")
 print(f"report: {os.path.join(reports, 'coop-story-flags.tsv')}")
