@@ -19,6 +19,8 @@ using AssetsTools.NET.Extra;
 //            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting
 //    or: dotnet run -c Release --project tools/FsmScan -- --persistent <out.tsv> [--filter ...]  to list every saved
 //            object in the scenes with the FSMs and FSM actions on it and on its parent
+//    or: dotnet run -c Release --project tools/FsmScan -- --interactions <scenes|all> [--out <interactions.tsv>]
+//            to sort the FSMs that the interact button starts the way two-player saves do
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -49,6 +51,16 @@ if (options.TryGetValue("layout", out var layoutScenes)) {
 
 if (options.TryGetValue("rooms", out var roomScenes)) {
     RoomAnalyzer.Run(bundleDir, roomScenes, ssmpDir);
+    return;
+}
+
+if (options.TryGetValue("interactions", out var interactionScenes)) {
+    InteractionAnalyzer.Run(
+        bundleDir,
+        interactionScenes,
+        ssmpDir,
+        options.GetValueOrDefault("out", Path.Combine(Path.GetDirectoryName(auditPath)!, "interactions.tsv"))
+    );
     return;
 }
 
@@ -334,6 +346,9 @@ internal sealed class FsmRecord {
     public string EntityType;
     public string EntityObject;
     public bool InEntityScene;
+
+    // The script classes of the MonoBehaviours on the FSM's object, for --interactions
+    public List<string> Components;
 
     // The values of the FSM's own variables by "type:name", with --persistent and --rooms, for the parameters that
     // variables fill in. A component that uses a template keeps its own variables.
@@ -863,6 +878,7 @@ internal static class BundleScanner {
             record.ObjectName = gameObject?.Name ?? "?";
             record.ObjectPath = string.Join("/", ancestors.AsEnumerable().Reverse().Select(a => a.Name).Append(record.ObjectName));
             record.InArena = HasComponent(gameObject, "BattleScene") || ancestors.Any(a => HasComponent(a, "BattleScene"));
+            record.Components = gameObject?.ComponentClasses.ToList() ?? new List<string>();
 
             // SSMP never registers corpses, see EntityManager.CollectEntityCandidates
             if (kind == "corpse" || IsCorpse(gameObject) || ancestors.Any(IsCorpse)) {
