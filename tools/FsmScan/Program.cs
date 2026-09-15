@@ -17,6 +17,8 @@ using AssetsTools.NET.Extra;
 //            [--fields <regex>]  to print the serialized fields of every MonoBehaviour with that script class
 //    or: dotnet run -c Release --project tools/FsmScan -- --params <action type regex> [--fields <regex>]
 //            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting
+//    or: dotnet run -c Release --project tools/FsmScan -- --persistent <out.tsv> [--filter ...]  to list every saved
+//            object in the scenes with the FSMs and FSM actions on it and on its parent
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -47,6 +49,11 @@ if (options.TryGetValue("layout", out var layoutScenes)) {
 
 if (options.TryGetValue("rooms", out var roomScenes)) {
     RoomAnalyzer.Run(bundleDir, roomScenes, ssmpDir);
+    return;
+}
+
+if (options.TryGetValue("persistent", out var persistentOut)) {
+    PersistentScanner.Run(bundleDir, filter, EntityRegistryData.Load(ssmpDir), persistentOut);
     return;
 }
 
@@ -309,6 +316,7 @@ internal sealed class GameObjectInfo {
 
 internal sealed class FsmRecord {
     public string Bundle;
+    public string File;
     public string BundleKind;
     public string Scene;
     public long GameObjectPathId;
@@ -336,6 +344,7 @@ internal sealed class TemplateRecord {
 
 internal sealed class ScanResult {
     public readonly List<FsmRecord> Fsms = new();
+    public readonly List<PersistentRecord> Persistent = new();
     public readonly Dictionary<string, TemplateRecord> Templates = new(StringComparer.Ordinal);
     public readonly List<string> Errors = new();
     public readonly List<string> SkippedGroupSamples = new();
@@ -480,6 +489,12 @@ internal static class BundleScanner {
 
     private static readonly Regex HashPrefix = new("^[0-9a-f]{32}$", RegexOptions.Compiled);
 
+    /// <summary>
+    /// Whether scans also collect the saved objects of scenes, for --persistent. Such scans always read the FSM
+    /// templates, so that FSMs made from a template get its actions.
+    /// </summary>
+    public static bool CollectPersistent;
+
     public static ScanResult Run(string bundleDir, string filter, int limit, EntityRegistryData registry) {
         var result = new ScanResult();
         var manager = new AssetsManager();
@@ -490,7 +505,8 @@ internal static class BundleScanner {
         var all = Directory.GetFiles(bundleDir, "*.bundle", SearchOption.AllDirectories)
             .Select(path => new BundleRef(path, Path.GetRelativePath(bundleDir, path).Replace('\\', '/'), new FileInfo(path).Length))
             .Where(b => PrefixOf(b.Rel) is not ("monoscripts" or "unitybuiltinassets"))
-            .Where(b => filter == null || b.Rel.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Where(b => filter == null || b.Rel.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                        (CollectPersistent && PrefixOf(b.Rel) == "fsmtemplates"))
             .OrderBy(b => b.Rel, StringComparer.Ordinal)
             .ToList();
 
@@ -663,6 +679,10 @@ internal static class BundleScanner {
                 context.MonoClasses[info.PathId] = className;
             }
 
+            if (CollectPersistent && scene != null) {
+                PersistentScanner.Collect(manager, instance, context, monoBehaviours, bundleRef, scene, result);
+            }
+
             var fileRecords = new List<FsmRecord>();
             foreach (var info in monoBehaviours) {
                 var className = context.MonoClasses[info.PathId];
@@ -688,6 +708,7 @@ internal static class BundleScanner {
 
                 var record = new FsmRecord {
                     Bundle = bundleRef.Rel,
+                    File = instance.name,
                     BundleKind = kind,
                     Scene = scene,
                     GameObjectPathId = root["m_GameObject"]["m_PathID"].AsLong,
