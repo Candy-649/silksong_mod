@@ -2,15 +2,17 @@
 and writes the story items for SSMP.
 
 Input is the dumps of FsmScan --dump in reports/itemdumps. A story item is one that the story gates progress on: a
-lock key, an item that a one-off story interaction uses up, a memento and a relic. Picking one of those up gives it to
-both players and hides the pickup of the partner. Everything that a player can farm or buy stays with each player:
+lock key, an item that a one-off story interaction uses up, a memento and a relic. Picking one up is never shared:
+every pickup in the world stays one copy per player, like all other pickups. The list only says which items a character
+handing one over on a first talk gives to both players, because the partner has no pickup of it anywhere, and which of
+them a one-off story interaction takes from both. Everything that a player can farm or buy stays with each player:
 consumables, materials, upgrades, maps, currency sets, tools and crests, and the targets of wishes that drop from
-enemies, because both players would otherwise get a double share of them.
+enemies.
 
 Removing an item is shared only where the story takes it for good and the world shows the result to both players: the
-keys that exist once, and the items that a one-off interaction builds something out of. Keys that shops also sell stay
-personal when they are used, so a player who bought their own still has it. Mementos and relics are never taken, and
-what a wish takes is already taken from both players by the wish sync.
+keys that exist once, and the items that a one-off interaction builds something out of. An item that a shop sells, asks
+for or takes in for an upgrade stays personal when it is used, so a player who bought or upgraded their own still has
+theirs. Mementos and relics are never taken, and what a wish takes is already taken from both players by the wish sync.
 
 Usage: py tools/coop_story_items.py [reports/itemdumps] [SSMP/SSMP/Resource/coop-story-items.json] [report.tsv]
 """
@@ -127,8 +129,10 @@ def read_pickups(folder):
 
 
 def read_shop_items(folder):
-    """The names of the items that shops sell."""
-    return read_referenced(folder, 'dump_shopitem.txt', re.compile(r'^savedItem$'))
+    """The names of the items that shops sell, ask for, or take in for an upgrade."""
+    return read_referenced(
+        folder, 'dump_shopitem.txt', re.compile(r'^(savedItem|requiredItem|upgradeFromItem)$')
+    )
 
 
 def read_wish_targets(folder):
@@ -172,7 +176,8 @@ def classify(items, keys, desk_items, shop_items, pickups, wish_targets):
             share_removal = name not in shop_items
         elif name in desk_items or name in UNIQUE_PLOT:
             kind = 'plot'
-            share_removal = True
+            # An item that a shop takes in for an upgrade is used up by each player on their own
+            share_removal = name not in shop_items
         elif type_name == 'CollectableItemRelicType':
             # The counter of a kind of relic, which the relics themselves raise
             reason = 'counter of the relics of one kind'
@@ -205,6 +210,11 @@ def main():
     wish_targets = read_wish_targets(source)
 
     shared, kept = classify(items, keys, desk_items, shop_items, pickups, wish_targets)
+
+    # What a wish takes is taken from both players by the wish sync already, so a shared removal on top of that
+    # would take the item twice
+    both = sorted({entry['name'] for entry in shared if entry['shareRemoval']} & wish_targets)
+    assert not both, f'items whose removal is shared are also targets of wishes: {", ".join(both)}'
 
     missing = sorted((keys | desk_items | UNIQUE_PLOT | BOOL_KEYS) - set(items))
     if missing:
