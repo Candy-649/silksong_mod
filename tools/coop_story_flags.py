@@ -56,6 +56,52 @@ OVERRIDES = {
     # Countdowns that TimePassesElsewhere lowers each time: shared, they would need a rule other than the larger value
     'bonetownPilgrimHornedCount': ('unsure', 'countdown that TimePassesElsewhere decrements, a merge cannot take max'),
     'bonetownPilgrimRoundCount': ('unsure', 'countdown that TimePassesElsewhere decrements, a merge cannot take max'),
+    # Decided 2026-09-16 from the readers, under rules the user already set: a world purchase, a change of the
+    # world and where a character is are shared. None of these were carried by a world object either, so without
+    # this they reached the partner through nothing at all
+    # Fast travel stations opened by paying a toll: world purchases, read by the station and its keeper
+    'UnlockedSongTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    'UnlockedUnderTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    'UnlockedCityBellwayTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    'UnlockedHangTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    'UnlockedEnclaveTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    'UnlockedArboriumTube': ('shared-world', 'fast travel station opened by a toll, a world purchase'),
+    # Shrines standing in the world, each read by about nine of its own components
+    'bellShrineBoneForest': ('shared-world', 'shrine lit in the world, read by its own components'),
+    'bellShrineWilds': ('shared-world', 'shrine lit in the world, read by its own components'),
+    'bellShrineGreymoor': ('shared-world', 'shrine lit in the world, read by its own components'),
+    'bellShrineShellwood': ('shared-world', 'shrine lit in the world, read by its own components'),
+    'bellShrineBellhart': ('shared-world', 'shrine lit in the world, read by its own components'),
+    'bellShrineEnclave': ('shared-world', 'shrine lit in the world, read by its own components'),
+    # Ways that stay open once opened
+    'slab_07_gateOpen': ('shared-world', 'gate that stays open, read by its own component'),
+    'song18Shortcut': ('shared-world', 'shortcut that stays open, read by its own components'),
+    'openedBeastmasterDen': ('shared-world', 'door that stays open, read by its own component'),
+    'PilgrimsRestDoorBroken': ('shared-world', 'door broken for good, read by the entities and characters there'),
+    'completedAbyssAscent': ('shared-world', 'a way of the world finished, read by the scene and a component'),
+    'aspid_04b_wildlifeReturned': ('shared-world', 'the wildlife of a room came back, read by its component'),
+    'collectorEggsHatched': ('shared-world', 'hatched in the world, read by ten of its own components'),
+    # Named characters of the world that are gone for good: the world has to look the same to both players
+    'pilbyKilled': ('shared-world', 'a named character of the world is gone'),
+    'boneEastJailerKilled': ('shared-world', 'a named character of the world is gone'),
+    'churchRhinoKilled': ('shared-world', 'a named character of the world is gone'),
+    'greymoor05_killedJailer': ('shared-world', 'a named character of the world is gone'),
+    'whiteCloverPos': ('shared-world', 'where a thing of the world stands, read by its component'),
+    'LibrarianCollectionComplete': ('shared-world', 'a collection of the world finished, read by its component'),
+    # Where characters are and what they will do, which the user decided is the same in both games
+    'FastTravelNPCLocation': ('shared-world', 'where the fast travel keeper is, read by 26 components'),
+    'shermaCitadelSpa_Visiting': ('shared-world', 'where a character is'),
+    'garmondWillAidInForumBattle': ('shared-world', 'what a character will do, read by five components'),
+    'garmondAidForumBattle': ('shared-world', 'what a character does, read by the character and the scene'),
+    'gillyQueueMovingOn': ('shared-world', 'a character moved on'),
+    'boneBottomFuneralComplete': ('shared-world', 'a scene of the world happened, read by nine components'),
+    'BonebottomBellwayPilgrimState': ('shared-world', 'the state of a character at a station'),
+    'BelltownDoctorCuredCurse': ('shared-world', 'a character was cured'),
+    'CaravanLechSaved': ('shared-world', 'a character was saved, read by the character and the scene'),
+    'MetTroupeHunterWild': ('shared-world', 'a character was met, read by nine of its own FSMs'),
+    'fleaGames_juggling_played': ('shared-world', 'a character remembers the game was played'),
+    'fleaGames_bouncing_played': ('shared-world', 'a character remembers the game was played'),
+    'fleaGames_dodging_played': ('shared-world', 'a character remembers the game was played'),
 }
 # The crest chapels: the scene FSM "Chapel Door Control" passes the name to the chapel_door_control template, whose
 # "Do Close" state sets it when this player enters the chapel's memory
