@@ -1,6 +1,6 @@
 # 状态机缺口的实际使用者
 
-- 生成时间：2026-09-13 23:08
+- 生成时间：2026-09-16 12:57
 - SSMP：`sync-fixes` @ `00b6d81`（动作的缺口标签来自 `reports/sync-audit.md`）
 - 资源包目录：`D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\StreamingAssets\aa\StandaloneWindows64`
 - 扫描 1332 个资源包，跳过 734 个纯贴图/音频/字体包；读到 17864 个状态机组件（按包类型：scene 17161、pool 342、other 262、corpse 99）和 219 个状态机模板
