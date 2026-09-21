@@ -1,6 +1,6 @@
 # 状态机缺口的实际使用者
 
-- 生成时间：2026-09-16 12:57
+- 生成时间：2026-09-20 20:32
 - SSMP：`sync-fixes` @ `00b6d81`（动作的缺口标签来自 `reports/sync-audit.md`）
 - 资源包目录：`D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\StreamingAssets\aa\StandaloneWindows64`
 - 扫描 1332 个资源包，跳过 734 个纯贴图/音频/字体包；读到 17864 个状态机组件（按包类型：scene 17161、pool 342、other 262、corpse 99）和 219 个状态机模板
@@ -17,12 +17,12 @@
 
 | 类别 | 状态机组件 | 用到 A–D 的 | A | B | C1 | C2 | D | E | L |
 |---|---|---|---|---|---|---|---|---|---|
-| SSMP 登记的实体 | 4610 | 3522 | 3359 | 372 | 2653 | 730 | 2045 | 3583 | 3247 |
-| 登记实体的子物体（自己没登记） | 1695 | 1290 | 1180 | 972 | 112 | 11 | 1092 | 307 | 264 |
+| SSMP 登记的实体 | 4691 | 3590 | 3427 | 372 | 2675 | 740 | 2101 | 3651 | 3328 |
+| 登记实体的子物体（自己没登记） | 1731 | 1290 | 1180 | 972 | 112 | 11 | 1092 | 307 | 264 |
 | 有 HealthManager 但没登记 | 239 | 238 | 225 | 84 | 83 | 1 | 144 | 188 | 187 |
-| 场景物体（机关/道具/环境） | 10061 | 6528 | 5566 | 1105 | 1762 | 1026 | 3887 | 5566 | 4394 |
+| 场景物体（机关/道具/环境） | 9948 | 6461 | 5499 | 1105 | 1740 | 1016 | 3832 | 5499 | 4315 |
 | NPC | 584 | 492 | 490 | 139 | 157 | 59 | 323 | 400 | 319 |
-| 对象池预制体（子弹/特效/召唤物） | 192 | 132 | 111 | 27 | 31 | 20 | 52 | 121 | 92 |
+| 对象池预制体（子弹/特效/召唤物） | 188 | 131 | 110 | 27 | 31 | 20 | 51 | 120 | 90 |
 | 敌人尸体 | 133 | 118 | 92 | 3 | 45 | 9 | 50 | 115 | 107 |
 | 主角 | 47 | 19 | 17 | 13 | 4 | 7 | 16 | 20 | 18 |
 | UI | 136 | 8 | 0 | 0 | 5 | 4 | 0 | 31 | 2 |
@@ -36,20 +36,20 @@
 
 | 效果 | 实体 | 实体子物体 | 未登记敌人 | 场景 | NPC | 对象池 | 尸体 | 主角 | UI | 其他 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 生成物体 | 2383 | 66 | 3 | 1197 | 192 | 19 | 9 | 6 | 4 | 15 |
-| 开关物体/渲染器 | 366 | 28 | 37 | 504 | 20 | 8 | 1 | 4 | 0 | 4 |
+| 生成物体 | 2406 | 66 | 3 | 1175 | 192 | 18 | 9 | 6 | 4 | 15 |
+| 开关物体/渲染器 | 376 | 28 | 37 | 494 | 20 | 8 | 1 | 4 | 0 | 4 |
 | 取主角实例 | 372 | 972 | 84 | 1105 | 139 | 27 | 3 | 13 | 0 | 13 |
-| 调用主角方法 | 844 | 977 | 84 | 949 | 102 | 28 | 4 | 15 | 0 | 11 |
-| 音效 | 3371 | 1139 | 178 | 5385 | 477 | 104 | 70 | 14 | 4 | 54 |
+| 调用主角方法 | 856 | 977 | 84 | 937 | 102 | 28 | 4 | 15 | 0 | 11 |
+| 音效 | 3439 | 1139 | 178 | 5318 | 477 | 103 | 70 | 14 | 4 | 54 |
 | 粒子 | 436 | 9 | 47 | 1065 | 45 | 6 | 31 | 2 | 0 | 2 |
-| 镜头 | 1422 | 87 | 147 | 2027 | 217 | 41 | 40 | 10 | 0 | 15 |
+| 镜头 | 1456 | 87 | 147 | 1993 | 217 | 41 | 40 | 10 | 0 | 15 |
 | 时间缩放 | 26 | 0 | 0 | 6 | 1 | 1 | 0 | 1 | 0 | 1 |
-| 移动/物理 | 2656 | 121 | 84 | 2789 | 192 | 42 | 52 | 9 | 5 | 19 |
+| 移动/物理 | 2712 | 121 | 84 | 2734 | 192 | 41 | 52 | 9 | 5 | 19 |
 | 动画 | 356 | 0 | 0 | 10 | 47 | 1 | 0 | 1 | 0 | 0 |
 | 血量 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| 随机数 | 2807 | 123 | 84 | 2463 | 205 | 50 | 50 | 8 | 8 | 27 |
+| 随机数 | 2829 | 123 | 84 | 2441 | 205 | 50 | 50 | 8 | 8 | 27 |
 
-## 1. 登记实体自己的状态机（230/233 种实体用到 A–D）
+## 1. 登记实体自己的状态机（236/239 种实体用到 A–D）
 
 非主机玩家那边这些状态机是关掉的，只靠主机转发，所以这里的每个 A–D 动作都直接影响敌人在其他玩家眼里的表现。
 
@@ -126,12 +126,14 @@
 | WingedPilgrim | 20 | localpoolprefabs_assets_areadust、bone_04、bone_07、bone_18 等 12 处 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`ChaseObjectSpread`<sub>C1</sub>、`CreateEmptyObject`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`FireAtTarget`<sub>C2/E</sub>、`IdleBuzzV2`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `AccelerateToY`、`AnimatePositionBy`、`DecelerateV2`、`DecelerateXY`、`DistanceFly`、`FaceDirection`、`FaceObjectV2`、`FlingObjectsFromGlobalPoolTime` 等 15 个 |
 | PilgrimGuide | 18 | localpoolprefabs_assets_areaunderstore、bone_12、bonegrave、chapel_wanderer 等 7 处 | `AudioPlayInStateConditional`<sub>A/D</sub>、`AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`AudioStopV2`<sub>A/D</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`ObjectJitter`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetRandomAudioClipFromTable`<sub>A</sub> | `ActivateGameObject`、`DecelerateV2`、`DecelerateXY`、`FaceObject`、`FaceObjectV2`、`FlipScale`、`SetPosition`、`SetVelocity2d` 等 9 个 |
 | Mnemonord | 12 | localpoolprefabs_assets_areapeak、peak_06 | `DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`FreezeMomentV2`<sub>A</sub>、`IdleBuzzV4`<sub>C1</sub>、`ObjectJitterLocal`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`SendMessageV2`<sub>D</sub>、`SpawnRandomObjectsRadialV2`<sub>A/C1</sub>、`StopParticleEmittersInChildren`<sub>A</sub> | `ActivateGameObject`、`DecelerateV2`、`HasTakenDamage`、`SetVelocity2d`、`SetVelocityAsAngle` |
+| BellfleaJuggler | 9 | aqueduct_05_festival | `ActivateGameObjectDelay`<sub>D</sub>、`AudioPlayerOneShotSingle`<sub>C2/E</sub>、`CreateEmptyObject`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2D`<sub>D</sub>、`TranslateRandom`<sub>C1</sub> | `ActivateGameObject`、`AnimatePositionBy`、`AnimatePositionTo`、`AnimateXPositionTo`、`AnimateYPositionTo`、`FaceObjectV2`、`SetPosition`、`SetScale` 等 10 个 |
 | Vaultkeeper | 9 | library_02、library_04、library_06、library_14 | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`AudioStopV2`<sub>A/D</sub>、`CreateEmptyObject`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub>、`SetPosition2d`<sub>D</sub>、`SetRandomAudioClipFromTable`<sub>A</sub> | `AccelerateToX`、`ActivateGameObject`、`DecelerateXY`、`FaceObjectV2`、`FlipScale`、`SetPosition`、`SetScale`、`SetVelocity2d` 等 10 个 |
 | Mortician | 7 | localpoolprefabs_assets_areaward、ward_03、ward_09 | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`AudioStopV2`<sub>A/D</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`ObjectJitter`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetRandomAudioClipFromTable`<sub>A</sub>、`StartRoarEmitter`<sub>B</sub> | `ActivateGameObject`、`AnimateZPositionTo`、`FaceObjectV2`、`FlipScale`、`SetDamageHero`、`SetInvincible`、`SetPosition`、`SetVelocity2d` 等 10 个 |
 | Lampbearer | 6 | localpoolprefabs_assets_arealibrary、library_04 | `ActivateGameObjectDelay`<sub>D</sub>、`AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`ChaseObject`<sub>C1</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`IdleBuzzV2`<sub>C1</sub>、`ObjectJitter`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`SetRandomAudioClipFromTable`<sub>A</sub> | `ActivateGameObject`、`ChaseObjectVertical`、`DecelerateV2`、`DistanceFly`、`FaceAngleV2`、`FaceDirection`、`FaceObjectV2`、`FlipScale` 等 12 个 |
 | ChoirElder | 6 | library_02、song_02、song_11、song_12 等 5 处 | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`AudioPlayV2`<sub>A/D</sub>、`AudioStopV2`<sub>A/D</sub>、`ChaseObjectSpread`<sub>C1</sub>、`CheckIsCharacterGrounded`<sub>A</sub>、`DoCameraShakeV2`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`IdleBuzzV2`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `ActivateGameObject`、`AddForce2d`、`AnimatePositionBy`、`DecelerateV2`、`DecelerateXY`、`DistanceFly`、`FaceDirection`、`FaceObjectV2` 等 12 个 |
 | Dregwheel | 5 | localpoolprefabs_assets_areaward、ward_02、ward_02_boss | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`ChaseObject`<sub>C1</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`FireAtTarget`<sub>C2/E</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`SetPosition2d`<sub>D</sub>、`SetRandomAudioClipFromTable`<sub>A</sub> | `AccelerateToY`、`ActivateGameObject`、`ChaseObjectGround`、`ChaseObjectV3`、`ChaseObjectVertical`、`DecelerateV2`、`DecelerateXY`、`FaceObjectV2` 等 18 个 |
 | PlasmifiedZango | 2 | crawl_10 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`AudioPlayerOneShotSingle`<sub>C2/E</sub>、`FlingObjectsFromGlobalPoolVelTime`<sub>A/C1/D</sub>、`GetPosition2D`<sub>D</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`SetRandomAudioClipFromTable`<sub>A</sub>、`StartRoarEmitter`<sub>B</sub>、`WalkLeftRight`<sub>A/C1</sub> | `AccelerateToXByScale`、`ActivateGameObject`、`AnimateRigidBody2DPositionToV2`、`DecelerateXY`、`DisplayBossTitle`、`InstaDeath`、`SetDamageHero`、`SetIsDead` 等 12 个 |
+| BellfleaJugglerGiant | 1 | aqueduct_05_festival | `ActivateGameObjectDelay`<sub>D</sub>、`AudioPlayerOneShotSingle`<sub>C2/E</sub>、`CreateEmptyObject`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2D`<sub>D</sub>、`TranslateRandom`<sub>C1</sub> | `ActivateGameObject`、`AnimatePositionBy`、`AnimatePositionTo`、`AnimateXPositionTo`、`AnimateYPositionTo`、`FaceObjectV2`、`SetPosition`、`SetScale` 等 10 个 |
 | Craggler | 1 | crawl_04 | `AudioPlaySimpleV2`<sub>A/D</sub>、`AudioStopV2`<sub>A/D</sub>、`DoCameraShakeRepeating`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`GetPosition2D`<sub>D</sub>、`ParticleSystemPlay`<sub>A</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`StartRoarEmitter`<sub>B</sub> | `AccelerateToX`、`ActivateGameObject`、`ChaseObjectGround`、`DecelerateXY`、`SetVelocity2d` |
 | Drapefly | 129 | arborium_11、hang_06_bank、hang_10、hang_15 等 17 处 | `ActivateGameObjectDelay`<sub>D</sub>、`AudioPlayRandomVoice`<sub>A/C1</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`RandomlyFlipScale`<sub>C1</sub>、`TranslateRandom`<sub>C1</sub> | `AccelerateToX`、`AccelerateToY`、`ActivateGameObject`、`AnimatePositionBy`、`DecelerateV2`、`DecelerateXY`、`FaceAngle`、`FaceObjectV2` 等 16 个 |
 | Cogworker | 62 | cog_05、cog_06、cog_07、song_27 等 5 处 | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`GetPosition2D`<sub>D</sub>、`ObjectJitter`<sub>C1</sub>、`ObjectJitterOnRender`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `ActivateGameObject`、`AnimatePositionBy`、`AnimateRigidBody2DPositionTo`、`ChaseObjectV2`、`DecelerateV2`、`DistanceFlyV2`、`DistanceFlyV3`、`FaceObjectV2` 等 13 个 |
@@ -143,6 +145,7 @@
 | Mnemonid | 26 | localpoolprefabs_assets_areapeak、peak_02、peak_04、peak_05c 等 6 处 | `DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`ObjectJitterLocal`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SendMessageV2`<sub>D</sub>、`SpawnRandomObjectsRadialV2`<sub>A/C1</sub>、`StopParticleEmittersInChildren`<sub>A</sub> | `ActivateGameObject`、`DecelerateV2`、`HasTakenDamage` |
 | Driznarga | 26 | arborium_06、coral_11、coral_23、coral_24 等 7 处 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`AudioStopV2`<sub>A/D</sub>、`EnemySingControl`<sub>A/C1</sub>、`GetPosition2D`<sub>D</sub>、`IdleBuzzV3`<sub>C1</sub>、`ObjectJitterOnRender`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`SetPosition2D`<sub>D</sub> | `ActivateGameObject`、`AddForce2d`、`DecelerateV2`、`DistanceFly`、`FaceDirection`、`FaceObjectV2`、`FaceObjectV3`、`SetAudioSource` 等 11 个 |
 | SmeltShoveller | 25 | bone_09、bone_east_01、bone_east_03、bone_east_05 等 14 处 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`AudioPlayRandomVoiceFromTable`<sub>A</sub>、`AudioStopV2`<sub>A/D</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayParticleEmitterChildren`<sub>A/D</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`WalkLeftRight`<sub>A/C1</sub> | `ActivateGameObject`、`DecelerateXY`、`FaceObjectV2`、`FlipScale`、`SetPosition`、`SetScale`、`SetVelocity2d`、`SetVelocityByScale` |
+| BellfleaSwooper | 24 | aqueduct_05_festival | `CheckIsCharacterGrounded`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`PlayRandomAudioClipTableV2`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub>、`SetPosition2D`<sub>D</sub>、`TranslateRandom`<sub>C1</sub> | `ActivateGameObject`、`AddForce2d`、`AnimatePositionTo`、`AnimateXPositionTo`、`AnimateYPositionTo`、`ClampPosition`、`DecelerateV2`、`FaceAngle` 等 16 个 |
 | CogworkDefender | 24 | cog_05、cog_06、cog_08 | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub>、`SetStringValueBool`<sub>D</sub>、`SetVelocity2dBool`<sub>D</sub> | `ActivateGameObject`、`AddForce2d`、`AnimateRigidBody2DPositionTo`、`DecelerateV2`、`DirectionalInvincibility`、`FaceObjectV2`、`FlipScale`、`SetPosition` 等 11 个 |
 | Karaka | 19 | coral_39、memory_coral_tower | `AudioPlayRandomVoiceFromTableV2`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2D`<sub>D</sub>、`SetPosition2d`<sub>D</sub> | `ActivateGameObject`、`AnimateZPositionTo`、`DecelerateXY`、`FaceObjectV2`、`SetInvincible`、`SetPosition`、`SetVelocity2d`、`SetVelocityByScale` 等 9 个 |
 | Escalion | 15 | clover_02c、clover_04b、clover_21 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`FireAtTarget`<sub>C2/E</sub>、`FlingObject`<sub>C1</sub>、`GetPosition2D`<sub>D</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`SetPosition2D`<sub>D</sub> | `ActivateGameObject`、`DecelerateV2`、`FaceAngle`、`FaceDirection`、`FaceObjectV2`、`SetInvincible`、`SetPositionToObject`、`SetPositionToObject2D` 等 13 个 |
@@ -239,6 +242,7 @@
 | Craw | 35 | localpoolprefabs_assets_areagreymoor、greymoor_01、greymoor_02、greymoor_03 等 9 处 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub> | `ActivateGameObject`、`AddForce2d`、`ChaseObjectGround`、`DecelerateV2`、`DecelerateXY`、`DecelerateXYConditional`、`FaceDirection`、`FaceObjectV2` 等 12 个 |
 | Roachcatcher | 34 | localpoolprefabs_assets_areadust、dust_02、dust_03、dust_04 等 8 处 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`FireAtTarget`<sub>C2/E</sub>、`IdleBuzzV3`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub> | `ActivateGameObject`、`AddForce2d`、`AnimatePositionBy`、`DecelerateV2`、`DistanceFly`、`FaceDirection`、`FaceObjectV2`、`SetPositionToObject` 等 11 个 |
 | Driftlin | 27 | peak_01、peak_04c、peak_05、peak_05d 等 6 处 | `EnemySingControl`<sub>A/C1</sub>、`IdleBuzzV3`<sub>C1</sub>、`IdleBuzzV4`<sub>C1</sub>、`ObjectJitter`<sub>C1</sub>、`TranslateRandom`<sub>C1</sub> | `ActivateGameObject`、`AnimatePositionTo`、`SetIsDead`、`SetPosition`、`SetRotation`、`SetVelocity2d`、`SimulateDeath`、`TiltBySpeed` 等 9 个 |
+| BellfleaBouncer | 24 | localpoolprefabs_assets_fleacaravan、aqueduct_05_festival | `CreateEmptyObject`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2D`<sub>D</sub> | `ActivateGameObject`、`AddForce2d`、`AnimatePositionBy`、`AnimateXPositionTo`、`AnimateYPositionTo`、`SetPosition`、`SetScale`、`SetVelocity2d` 等 10 个 |
 | ServitorIgnim | 23 | abyss_08、bone_east_weavehome、crawl_05、peak_02 等 12 处 | `DistanceWalkServitor`<sub>C1</sub>、`DistanceWalkServitorV`<sub>C1</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`SetPosition2D`<sub>D</sub> | `ActivateGameObject`、`AnimateRotationTo`、`ClampVelocity2D`、`DecelerateV2`、`EaseSpriteColor`、`SetScale`、`SetVelocity2d` |
 | Mossmir | 19 | arborium_01、arborium_04、tut_01、tut_01b 等 6 处 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`AudioPlayerOneShotSingle`<sub>C2/E</sub>、`EnemySingControl`<sub>A/C1</sub>、`IdleBuzzV3`<sub>C1</sub>、`PlayAudioEvent`<sub>A</sub> | `ActivateGameObject`、`ChaseObjectV2`、`DecelerateV2`、`DecelerateXY`、`FaceDirection`、`FaceObject`、`FaceObjectV2`、`InstaDeath` 等 12 个 |
 | CrawJuror | 18 | greymoor_15、greymoor_15b、room_crowcourt_02 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub> | `ActivateGameObject`、`AddForce2d`、`AddHP`、`AnimatePositionBy`、`ChaseObjectGround`、`DecelerateV2`、`DecelerateXY`、`DecelerateXYConditional` 等 16 个 |
@@ -256,6 +260,7 @@
 | HardboneElder | 6 | bone_east_18、bone_east_24 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`DoCameraShake`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub> | `ActivateGameObject`、`AdjustColliderPosToEdge`、`DecelerateV2`、`FaceObjectV2`、`FlipScale`、`SetVelocity2d`、`SetVelocityByScale` |
 | LastClaw | 4 | memory_ant_queen | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`DoCameraShake`<sub>A</sub>、`FireAtTarget`<sub>C2/E</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `AccelerateToY`、`ActivateGameObject`、`ClampVelocity2D`、`DecelerateV2`、`DecelerateXY`、`DirectionalInvincibility`、`DistanceFly`、`DistanceFlyV3` 等 14 个 |
 | SquatcrawJuror | 4 | room_crowcourt_02 | `AudioPlayRandomVoiceFromTable`<sub>A</sub>、`CheckIsCharacterGrounded`<sub>A</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub> | `ActivateGameObject`、`AddForce2d`、`AddHP`、`AnimatePositionBy`、`AnimatePositionTo`、`DecelerateV2`、`DecelerateXY`、`FaceObjectV2` 等 15 个 |
+| BellfleaBouncerGiant | 2 | aqueduct_05_festival | `CreateEmptyObject`<sub>A</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2D`<sub>D</sub> | `ActivateGameObject`、`AddForce2d`、`AnimatePositionBy`、`AnimateXPositionTo`、`AnimateYPositionTo`、`SetPosition`、`SetScale`、`SetVelocity2d` 等 10 个 |
 | Fluttermite | 30 | ant_08、greymoor_03、greymoor_04、greymoor_05 等 9 处 | `ActivateGameObjectDelay`<sub>D</sub>、`AudioPlayRandomVoice`<sub>A/C1</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub> | `ActivateGameObject`、`AnimatePositionBy`、`ChaseObjectGround`、`ChaseObjectVertical`、`DecelerateV2`、`DecelerateXY`、`FaceObjectV2`、`InstaDeath` 等 11 个 |
 | MothleafLagnia | 29 | shadow_11、shadow_14、shadow_15、shadow_22 等 7 处 | `EnemySingControl`<sub>A/C1</sub>、`GetPosition2d`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub> | `AccelerateToY`、`ActivateGameObject`、`DecelerateV2`、`DecelerateXY`、`SetVelocity2d` |
 | Lavalug | 19 | dock_02、dock_02b、dock_03、dock_03c 等 6 处 | `AudioPlayV2`<sub>A/D</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`SpawnObjectFromGlobalPoolOverTime`<sub>A/D</sub> | `ActivateGameObject`、`AnimatorPlay`、`SetVelocity2d`、`StartClimber`、`StopClimber` |
@@ -270,6 +275,7 @@
 | Fertid | 32 | bone_east_02、bone_east_02b、bone_east_07、bone_east_09 等 19 处 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`EnemySingControl`<sub>A/C1</sub>、`SetParticleEmissionChildren`<sub>D</sub> | `SetVelocity2d` |
 | SkullScuttler | 24 | localpoolprefabs_assets_areaarboriumareaboneareadocksareawilds、abyss_09、arborium_02、bone_01 等 13 处 | `EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `ActivateGameObject`、`DecelerateXY`、`FaceObjectV2`、`SetAudioSource`、`SetPosition`、`SetVelocity2d` |
 | Imoba | 22 | cradle_destroyed_challenge_01 | `AudioStopV2`<sub>A/D</sub>、`PlayAudioEventRandom`<sub>A</sub>、`PlayRandomAudioClipTable`<sub>A</sub> | `AddHP`、`AnimatePositionTo`、`ChaseObjectV3`、`DecelerateV2`、`FaceDirection`、`SetPosition`、`SetPositionToObject2D`、`SetScale` 等 10 个 |
+| BellfleaGameStart | 21 | aqueduct_05_festival | `GetPosition2D`<sub>D</sub>、`PlayRandomAudioClipTable`<sub>A</sub>、`SetPosition2d`<sub>D</sub> | `ActivateGameObject`、`AnimateXPositionTo`、`AnimateYPositionTo`、`SetPosition`、`Translate` |
 | Kilik | 14 | ant_19、arborium_02、bone_07、bone_10 等 5 处 | `AudioPlayRandomVoice`<sub>A/C1</sub>、`EnemySingControl`<sub>A/C1</sub>、`PlayAudioEvent`<sub>A</sub> | `ActivateGameObject`、`DecelerateV2`、`FaceObjectV2`、`SetAudioSource`、`SetInvincible`、`SetPosition`、`SetVelocity2d`、`SimulateDeath` |
 | Mawling | 11 | arborium_03、tut_01b、weave_03 | `EnemySingControl`<sub>A/C1</sub>、`GetPosition2D`<sub>D</sub>、`PlayAudioEvent`<sub>A</sub> | `ConstrainMovement`、`FaceObject`、`SetAudioSource`、`SetPosition`、`SetVelocity2d`、`SetVelocityAsAngle` |
 | Skrill | 10 | abandoned_town | `PlayAudioEvent`<sub>A</sub>、`PlayAudioEventRandom`<sub>A</sub>、`RandomlyFlipScale`<sub>C1</sub> | `ActivateGameObject`、`FaceObjectV2`、`FlipScale`、`FlipScaleOnExit`、`SetPosition`、`SetTransformParent`、`SetVelocity2d`、`SetVelocityByScale` 等 11 个 |
@@ -291,7 +297,7 @@
 
 登记了、但资源里没匹配到状态机的实体类型（3，可能是运行时生成、改名，或者没有状态机）：Brushflit、Sandcarver、Squirrm
 
-## 2. 登记实体的子物体上、自己没登记的状态机（1695 个组件，181 组用到 A–D）
+## 2. 登记实体的子物体上、自己没登记的状态机（1731 个组件，181 组用到 A–D）
 
 SSMP 只接管实体物体本身的状态机（`GetComponents<PlayMakerFSM>`）。客户端那份是整个物体克隆出来的，子物体上的状态机在每台电脑上各自运行，里面的动作会在本地发生。要看的是触发它们的事件（通常由实体的状态机发出）在客户端有没有被转发，以及它们自己计时、随机的部分会不会和主机分叉。
 
@@ -383,10 +389,10 @@ SSMP 只接管实体物体本身的状态机（`GetComponents<PlayMakerFSM>`）�
 
 | 动作 | 标签 | 变体来源 | 合计 | 实体 | 实体子物体 | 未登记敌人 | 场景 | NPC | 对象池 | 尸体 | 主角 | UI | 其他 | 例子（实体/物体 · 状态机 · 状态） |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `PlayAudioEvent` | A |  | 7632 | 2712 | 1025 | 177 | 3177 | 341 | 80 | 65 | 14 | 0 | 41 | Gloomsac · Control · Attack Antic |
+| `PlayAudioEvent` | A |  | 7632 | 2759 | 1025 | 177 | 3131 | 341 | 79 | 65 | 14 | 0 | 41 | Gloomsac · Control · Attack Antic |
 | `EnemySingControl` | A/C1 |  | 2461 | 2264 | 55 | 2 | 4 | 135 | 1 | 0 | 0 | 0 | 0 | Moorwing · Control · Sing |
-| `DoCameraShake` | A |  | 3550 | 1370 | 87 | 147 | 1719 | 126 | 40 | 40 | 7 | 0 | 14 | Gloomsac · Control · Wall Bounce |
-| `PlayRandomAudioClipTable` | A |  | 2933 | 1237 | 65 | 5 | 1370 | 212 | 20 | 13 | 10 | 0 | 1 | Gloomsac · Control · Capture |
+| `DoCameraShake` | A |  | 3550 | 1404 | 87 | 147 | 1685 | 126 | 40 | 40 | 7 | 0 | 14 | Gloomsac · Control · Wall Bounce |
+| `PlayRandomAudioClipTable` | A |  | 2933 | 1293 | 65 | 5 | 1315 | 212 | 19 | 13 | 10 | 0 | 1 | Gloomsac · Control · Capture |
 | `PlayAudioEventRandom` | A |  | 2027 | 1219 | 81 | 49 | 588 | 46 | 26 | 11 | 4 | 0 | 3 | Gloomsac · Control · Attack Antic |
 | `DamageHeroDirectly` | A/B |  | 1599 | 96 | 945 | 84 | 456 | 0 | 15 | 0 | 1 | 0 | 2 | Gloomsac · Control · Chomp End |
 | `GetHeroCState` | A/B |  | 1646 | 87 | 940 | 47 | 535 | 2 | 20 | 1 | 9 | 0 | 5 | Alita · hornet_multi_wounder · Hit |
@@ -395,43 +401,43 @@ SSMP 只接管实体物体本身的状态机（`GetComponents<PlayMakerFSM>`）�
 | `SendEventByNameUpwards` | D | `SendEventByName` | 2067 | 37 | 968 | 47 | 917 | 76 | 17 | 0 | 3 | 0 | 2 | Alita · hornet_multi_wounder · Bell Bind Hit |
 | `CanHeroTakeDamage` | A/B |  | 1373 | 32 | 941 | 47 | 336 | 0 | 15 | 0 | 0 | 0 | 2 | Alita · hornet_multi_wounder · Hit |
 | `HeroControllerMethods` | A/B |  | 1448 | 8 | 932 | 47 | 413 | 19 | 16 | 1 | 9 | 0 | 3 | Alita · hornet_multi_wounder · Hit |
-| `GetPosition2D` | D | `GetPosition` | 1268 | 669 | 47 | 11 | 465 | 54 | 9 | 5 | 5 | 0 | 3 | Alita · Control · Spear Spawn Pause |
+| `GetPosition2D` | D | `GetPosition` | 1268 | 725 | 47 | 11 | 410 | 54 | 8 | 5 | 5 | 0 | 3 | Alita · Control · Spear Spawn Pause |
 | `AudioPlayRandomVoiceFromTableV2` | A |  | 801 | 689 | 2 | 2 | 7 | 96 | 1 | 4 | 0 | 0 | 0 | Alita · Control · Throw Antic |
 | `AudioStopV2` | A/D | `AudioStop` | 1260 | 650 | 5 | 0 | 451 | 141 | 4 | 3 | 3 | 0 | 3 | Alita · Control · Land |
+| `CheckIsCharacterGrounded` | A |  | 704 | 617 | 8 | 0 | 38 | 28 | 2 | 2 | 6 | 0 | 3 | CogworkChoirbug · Control · Walk |
 | `AudioPlayRandomVoice` | A/C1 |  | 628 | 616 | 0 | 0 | 1 | 7 | 0 | 4 | 0 | 0 | 0 | Nyleth · Control · Leap Antic |
-| `CheckIsCharacterGrounded` | A |  | 704 | 605 | 8 | 0 | 50 | 28 | 2 | 2 | 6 | 0 | 3 | CogworkChoirbug · Control · Walk |
 | `ObjectJitter` | C1 |  | 1177 | 567 | 0 | 27 | 567 | 9 | 2 | 2 | 0 | 1 | 2 | Moorwing · Control · Stun Air |
-| `RandomlyFlipScale` | C1 |  | 908 | 505 | 14 | 0 | 371 | 0 | 8 | 6 | 2 | 0 | 2 | Gloomsac · Control · Struggle D |
+| `RandomlyFlipScale` | C1 |  | 908 | 517 | 14 | 0 | 359 | 0 | 8 | 6 | 2 | 0 | 2 | Gloomsac · Control · Struggle D |
 | `IdleBuzzV3` | C1 |  | 763 | 504 | 8 | 0 | 247 | 0 | 4 | 0 | 0 | 0 | 0 | Underloft · Control · Idle Fly |
-| `SetPosition2D` | D | `SetPosition` | 958 | 449 | 2 | 11 | 450 | 25 | 8 | 5 | 5 | 0 | 3 | Alita · Control · Spear Spawn Pause |
+| `SetPosition2D` | D | `SetPosition` | 958 | 484 | 2 | 11 | 416 | 25 | 7 | 5 | 5 | 0 | 3 | Alita · Control · Spear Spawn Pause |
 | `SetRandomAudioClipFromTable` | A |  | 487 | 424 | 2 | 0 | 3 | 58 | 0 | 0 | 0 | 0 | 0 | Underloft · Control · Rest Roof |
-| `GetPosition2d` | D | `GetPosition` | 1054 | 354 | 50 | 2 | 615 | 22 | 4 | 3 | 4 | 0 | 0 | Alita · Control · Alt Pos? |
-| `ActivateGameObjectDelay` | D | `ActivateGameObject` | 927 | 366 | 28 | 37 | 467 | 14 | 8 | 1 | 3 | 0 | 3 | Moorwing · Control · Slash Dive |
+| `GetPosition2d` | D | `GetPosition` | 1054 | 364 | 50 | 2 | 605 | 22 | 4 | 3 | 4 | 0 | 0 | Alita · Control · Alt Pos? |
+| `ActivateGameObjectDelay` | D | `ActivateGameObject` | 927 | 376 | 28 | 37 | 457 | 14 | 8 | 1 | 3 | 0 | 3 | Moorwing · Control · Slash Dive |
 | `FireAtTarget` | C2/E |  | 398 | 380 | 0 | 0 | 13 | 0 | 4 | 0 | 1 | 0 | 0 | Roachcatcher · Control · To Next Point |
 | `PlayParticleEmitterChildren` | A/D | `PlayParticleEmitter` | 1518 | 366 | 9 | 47 | 1037 | 23 | 4 | 31 | 0 | 0 | 1 | Moorwing · Slash Dust Effects · Play |
 | `WalkLeftRight` | A/C1 |  | 268 | 268 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | Scrollreader · Control · Patrol |
 | `SetVelocity2dBool` | D | `SetVelocity2d` | 256 | 245 | 8 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | Underloft · Control · Aggro |
+| `AudioPlayerOneShotSingle` | C2/E |  | 1065 | 239 | 11 | 1 | 730 | 44 | 13 | 9 | 2 | 4 | 12 | Moorwing · Stun Control · Stun End |
 | `IdleBuzzV4` | C1 |  | 256 | 249 | 0 | 0 | 7 | 0 | 0 | 0 | 0 | 0 | 0 | Clawmaiden · Control · Rest |
-| `AudioPlayerOneShotSingle` | C2/E |  | 1065 | 229 | 11 | 1 | 740 | 44 | 13 | 9 | 2 | 4 | 12 | Moorwing · Stun Control · Stun End |
-| `TranslateRandom` | C1 |  | 278 | 208 | 0 | 3 | 61 | 1 | 3 | 1 | 1 | 0 | 0 | Cloverstag · Control · Summon Up |
-| `SetPosition2d` | D | `SetPosition` | 1130 | 196 | 9 | 49 | 846 | 11 | 6 | 10 | 2 | 0 | 1 | Alita · Control · Alt Pos? |
+| `TranslateRandom` | C1 |  | 278 | 230 | 0 | 3 | 39 | 1 | 3 | 1 | 1 | 0 | 0 | Cloverstag · Control · Summon Up |
+| `SetPosition2d` | D | `SetPosition` | 1130 | 217 | 9 | 49 | 825 | 11 | 6 | 10 | 2 | 0 | 1 | Alita · Control · Alt Pos? |
 | `ChaseObject` | C1 |  | 206 | 205 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | Lampbearer · Control · Scrollkeeper |
 | `IdleBuzzV2` | C1 |  | 168 | 162 | 0 | 1 | 0 | 0 | 0 | 5 | 0 | 0 | 0 | Gloomsac · Control · Unalert Fly |
 | `StopParticleEmittersInChildren` | A |  | 487 | 136 | 0 | 47 | 267 | 13 | 2 | 22 | 0 | 0 | 0 | Trobbio · Control · Tornado Shoot |
+| `CreateEmptyObject` | A |  | 312 | 130 | 0 | 0 | 181 | 0 | 1 | 0 | 0 | 0 | 0 | Alita · Control · Configure Tele |
 | `AudioPlayRandom` | C2 |  | 291 | 129 | 0 | 0 | 151 | 6 | 1 | 0 | 4 | 0 | 0 | LostLace · Control · Charge Antic |
 | `AudioPlayInStateConditional` | A/D | `AudioPlayInState` | 116 | 115 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | PilgrimGuide · pilgrim_behaviour · Pray |
 | `StartRoarEmitter` | B |  | 173 | 113 | 0 | 0 | 24 | 34 | 1 | 1 | 0 | 0 | 0 | Moorwing · Control · Rage Start |
 | `AudioPlayV2` | A/D | `AudioPlay` | 123 | 113 | 0 | 0 | 6 | 1 | 0 | 0 | 3 | 0 | 0 | Skarrgard · Control · Wake |
 | `ChaseObjectSpread` | C1 |  | 109 | 109 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | WingedPilgrim · Control · To Patrol |
-| `CreateEmptyObject` | A |  | 312 | 107 | 0 | 0 | 203 | 0 | 2 | 0 | 0 | 0 | 0 | Alita · Control · Configure Tele |
 | `DoCameraShakeRepeating` | A |  | 122 | 103 | 0 | 0 | 12 | 2 | 3 | 1 | 1 | 0 | 0 | Gloomsac · Control · Capture |
 | `AudioPlaySimpleV2` | A/D | `AudioPlay`、`AudioPlaySimple` | 564 | 84 | 1 | 0 | 476 | 3 | 0 | 0 | 0 | 0 | 0 | WoodWasp · Control · Idle |
 | `CanHeroBeGrabbed` | A/B |  | 71 | 48 | 22 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | Gloomsac · Detect Grab · Check |
 | `AudioPlayerOneShot` | C2/E |  | 319 | 66 | 0 | 0 | 232 | 17 | 2 | 1 | 0 | 0 | 1 | Trobbio · Control · Spin |
 | `PlayAudioEventRandomBool` | A |  | 76 | 65 | 0 | 0 | 9 | 0 | 0 | 0 | 2 | 0 | 0 | CogworkDancers · Control · Beam Pos Bow |
+| `PlayRandomAudioClipTableV2` | A |  | 171 | 53 | 6 | 0 | 99 | 9 | 1 | 1 | 2 | 0 | 0 | Moorwing · Control · Flap |
 | `ObjectJitterOnRender` | C1 |  | 138 | 55 | 0 | 0 | 73 | 3 | 0 | 7 | 0 | 0 | 0 | Driznit · Control · Drop Antic |
 | `ScreenFlash` | A |  | 192 | 48 | 5 | 0 | 43 | 86 | 8 | 1 | 0 | 0 | 1 | FatherOfTheFlame · Summon Control · Flare Up |
-| `PlayRandomAudioClipTableV2` | A |  | 171 | 41 | 6 | 0 | 111 | 9 | 1 | 1 | 2 | 0 | 0 | Moorwing · Control · Flap |
 | `CancelCameraShake` | A |  | 128 | 46 | 0 | 0 | 38 | 37 | 1 | 5 | 0 | 0 | 1 | Trobbio · Control · Collapse |
 | `SpawnObjectFromGlobalPoolOverTime` | A/D | `SpawnObjectFromGlobalPool` | 43 | 42 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | Moorwing · Control · Multi Slash |
 | `SetStringValueBool` | D | `SetStringValue` | 39 | 38 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | CogworkChoirbug · Walk · Do Step S |
@@ -601,37 +607,38 @@ SSMP 只接管实体物体本身的状态机（`GetComponents<PlayMakerFSM>`）�
 
 | 动作 | 标签 | 效果 | 实体种类 | 组件数 | 例子（实体 · 状态机 · 状态） |
 |---|---|---|---|---|---|
-| `SetVelocity2d` | E | Motion | 214 | 2948 | Gloomsac · Control · Wall Bounce |
-| `ActivateGameObject` | E | Activate | 204 | 2787 | Gloomsac · Control · Attack |
-| `FaceObjectV2` | L | Animation/Motion/FrameTimer | 180 | 2203 | Gloomsac · Control · Follow |
-| `SetVelocityByScale` | L | Motion | 159 | 1843 | Alita · Control · Throw Jump |
-| `DecelerateV2` | L | Motion | 145 | 1548 | Gloomsac · Control · Attack Antic |
-| `SetPosition` | E | Motion | 134 | 1683 | Alita · Control · Jump In Setup |
+| `SetVelocity2d` | E | Motion | 219 | 2995 | Gloomsac · Control · Wall Bounce |
+| `ActivateGameObject` | E | Activate | 210 | 2855 | Gloomsac · Control · Attack |
+| `FaceObjectV2` | L | Animation/Motion/FrameTimer | 183 | 2225 | Gloomsac · Control · Follow |
+| `SetVelocityByScale` | L | Motion | 161 | 1856 | Alita · Control · Throw Jump |
+| `DecelerateV2` | L | Motion | 146 | 1560 | Gloomsac · Control · Attack Antic |
+| `SetPosition` | E | Motion | 140 | 1739 | Alita · Control · Jump In Setup |
 | `DecelerateXY` | L | Motion | 133 | 1621 | Gloomsac · Control · Capture Rise |
-| `Translate` | L | Motion | 104 | 1245 | Moorwing · Control · Min Raise |
-| `SetScale` | E | Motion | 96 | 886 | Gloomsac · Control · Struggle L |
-| `SetVelocityAsAngle` | E | Motion | 78 | 936 | Gloomsac · Control · Attack Antic |
+| `Translate` | L | Motion | 110 | 1301 | Moorwing · Control · Min Raise |
+| `SetScale` | E | Motion | 101 | 921 | Gloomsac · Control · Struggle L |
+| `SetVelocityAsAngle` | E | Motion | 79 | 960 | Gloomsac · Control · Attack Antic |
 | `FlipScale` | L | Motion | 75 | 838 | Moorwing · Control · Turn |
-| `SetRotation` | E | Motion | 71 | 938 | Gloomsac · Control · Wall Bounce |
+| `SetRotation` | E | Motion | 72 | 950 | Gloomsac · Control · Wall Bounce |
 | `SetInvincible` | L | Health | 66 | 423 | Underloft · Control · Cartwheel Launch |
-| `FaceDirection` | L | Animation/Motion | 57 | 777 | Gloomsac · Control · Attack |
-| `AnimatePositionBy` | L | Motion/FrameTimer | 57 | 720 | Underloft · Control · Fly In |
+| `AnimatePositionBy` | L | Motion/FrameTimer | 61 | 743 | Underloft · Control · Fly In |
+| `FaceDirection` | L | Animation/Motion | 58 | 789 | Gloomsac · Control · Attack |
 | `SetPositionToObject2D` | L | Motion | 56 | 471 | Gloomsac · Control · Capture |
 | `SimulateDeath` | L | Health | 51 | 689 | Gloomsac · Control · Die |
 | `SetPositionToObject` | L | Motion | 49 | 599 | Underloft · Control · Shift |
 | `SetDamageHero` | L | Activate | 48 | 461 | Gloomsac · Control · Attack |
 | `DistanceFly` | L | Motion | 37 | 451 | Gloomsac · Control · Follow |
-| `AnimatePositionTo` | L | Motion/FrameTimer | 34 | 343 | Moorwing · Control · Multi Slash |
+| `AnimatePositionTo` | L | Motion/FrameTimer | 37 | 365 | Moorwing · Control · Multi Slash |
 | `DisplayBossTitle` | L | Activate | 33 | 52 | Moorwing · Control · Roar |
 | `AccelerateToY` | L | Motion | 30 | 317 | Gloomsac · Control · Capture Rise |
 | `AccelerateToX` | L | Motion | 30 | 275 | Moorwing · Control · Charge |
-| `AddForce2d` | L | Motion | 26 | 249 | Gloomsac · Control · Capture Rise |
+| `AddForce2d` | L | Motion | 29 | 274 | Gloomsac · Control · Capture Rise |
 | `FaceObject` | L | Animation/Motion | 25 | 406 | Underpoke · Control · Position |
 | `ShoveFromWall` | L | Motion | 24 | 234 | Gloomsac · Control · Follow |
 | `AddHP` | L | Health | 22 | 416 | Gloomsac · Control · Respawn Ready |
 | `ActivateAllChildren` | L | Activate | 22 | 227 | Underloft · Control · Aggro |
-| `FaceAngle` | L | Motion | 20 | 246 | Gloomsac · Control · Attack |
+| `FaceAngle` | L | Motion | 21 | 258 | Gloomsac · Control · Attack |
 | `InstaDeath` | L | Health | 19 | 287 | Plasmidas · Control · Extract Kill |
+| `AnimateYPositionTo` | L | Motion/FrameTimer | 18 | 140 | BellfleaBouncer · Wave Control · Tween Down |
 | `AccelerateToXByScale` | L | Motion | 16 | 54 | Cloverstag · Control · Move |
 | `SetAudioSource` | L | Activate | 15 | 270 | SkullScuttler · Control · Hiding |
 | `SetIsDead` | L | Health | 15 | 183 | Gloomsac · Control · Die |
@@ -640,19 +647,18 @@ SSMP 只接管实体物体本身的状态机（`GetComponents<PlayMakerFSM>`）�
 | `FaceObjectV3` | L | Animation/Motion/FrameTimer | 13 | 177 | Underloft · Control · Face Hero |
 | `ChaseObjectVertical` | L | Motion | 13 | 121 | Cloverstag · Control · Move |
 | `DirectionalInvincibility` | L | Health | 13 | 98 | Reed · Control · Defend |
+| `AnimateXPositionTo` | L | Motion/FrameTimer | 13 | 87 | BellfleaBouncer · Control · Fly In |
 | `AnimateZPositionTo` | L | Motion/FrameTimer | 12 | 177 | Alita · Control · Jump In |
-| `AnimateYPositionTo` | L | Motion/FrameTimer | 12 | 71 | LostLace · Control · Dive Out A |
 | `PreventInvincibleEffect` | L | Health | 12 | 35 | Trobbio · Control · Start Idle |
 | `ChaseObjectGround` | L | Animation/Motion | 11 | 115 | Moorwing · Control · In Air |
 | `AnimateRigidBody2DPositionToV2` | L | Motion/FrameTimer | 11 | 49 | Alita · Control · Tele To |
 | `DistanceFlyV2` | L | Motion | 10 | 158 | Reed · Control · Alert |
 | `DecelerateXYConditional` | L | Motion | 10 | 81 | Craw · Behaviour · Swoop Down |
-| `ClampPosition` | L | Motion | 9 | 64 | Pinstress · Control · A Dash Dir |
+| `ClampPosition` | L | Motion | 10 | 76 | Pinstress · Control · A Dash Dir |
 | `DistanceFlyHorizontal` | L | Motion | 9 | 42 | Wardenfly · Control · Rise |
 | `ChaseObjectV2` | L | Motion | 8 | 102 | SavageBeastfly · Control · Buzz To Home |
 | `TiltBySpeedY` | L | Motion | 8 | 95 | Cloverstag · Control · Move |
 | `Decelerate` | L | Motion | 7 | 123 | Skarrwing · Control · Stop |
-| `AnimateXPositionTo` | L | Motion/FrameTimer | 7 | 31 | SavageBeastfly · Control · Stomp Antic R |
 | `FlipScaleOnExit` | L | Motion | 7 | 29 | Skrill · Behaviour · Turn |
 | `ClampVelocity2D` | L | Motion | 6 | 83 | Wardenfly · Control · Flutter Down |
 | `AnimatorPlay` | L | Animation | 6 | 65 | LostLace · Control · P3 Roar End |
@@ -669,12 +675,12 @@ Boss 房的机关、门、会掉下来的东西通常在这里。它们不是实
 | 场景 | 组件数 | 用到缺口最多的几个 |
 |---|---|---|
 | memory_coral_tower | 172 | End Scene·Control（AudioPlayRandomVoiceFromTable、AudioStopV2、DoCameraShake）；door_wakeInMemory·Wake Up（AddHeroInputBlocker、PlayAudioEvent、PlayAudioEventDelayed）；Battle Gate Coral·BG Control（AudioPlayerOneShotSingle、AudioStopV2、DoCameraShake） |
-| aqueduct_05_festival | 125 | RestBench Festival·Bench Control（AddHeroInputBlocker、AudioPlayerOneShotSingle、AudioStopV2）；Bellflea Juggler·Control（ActivateGameObjectDelay、AudioPlayerOneShotSingle、CreateEmptyObject）；Bellflea Juggler·Control（ActivateGameObjectDelay、AudioPlayerOneShotSingle、CreateEmptyObject） |
 | clover_10 | 110 | thread_memory·FSM（AddHeroInputBlocker、AudioPlayerOneShotSingle、DoCameraShakeV2）；hero damager·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState）；hero damager·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState） |
 | cog_dancers_boss | 87 | hero damager·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState）；hero damager·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState）；hero damager·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState） |
 | coral_29 | 72 | Mega Jelly Zap·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState）；Mega Jelly Zap·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState）；Mega Jelly Zap·hornet_multi_wounder（CanHeroTakeDamage、DamageHeroDirectly、GetHeroCState） |
 | shadow_20 | 69 | Breakable Wall·breakable_wall_v2（AudioPlayRandom、AudioPlaySimpleV2、AudioPlayerOneShotSingle）；Splash Surface·Corpse Splash（AudioPlayerOneShot、GetPosition2D、SendEventByNameUpwards）；Splash Surface·Corpse Splash（AudioPlayerOneShot、GetPosition2D、SendEventByNameUpwards） |
 | abyss_09 | 60 | RestBench·Bench Control（AddHeroInputBlocker、AudioPlayerOneShotSingle、AudioStopV2）；Rising Lava·Rise Control（CancelCameraShake、DoCameraShake、DoCameraShakeV2）；explode_wall·Control（FlingObjects、ObjectJitter、PlayAudioEvent） |
+| aqueduct_05_festival | 58 | RestBench Festival·Bench Control（AddHeroInputBlocker、AudioPlayerOneShotSingle、AudioStopV2）；Caravan Troupe Flea Festival Swimmer·Control（AudioPlayRandomVoiceFromTable、CheckIsCharacterGrounded、FireAtTarget）；Caravan Troupe Flea Festival Swimmer·Control（AudioPlayRandomVoiceFromTable、CheckIsCharacterGrounded、FireAtTarget） |
 | dust_maze_02 | 56 | Dust Trap Spike Plate·Control（ActivateGameObjectDelay、DoCameraShake、PlayAudioEvent）；Dust Trap Spike Plate·Control（ActivateGameObjectDelay、DoCameraShake、PlayAudioEvent）；Dust Trap Spike Plate·Control（ActivateGameObjectDelay、DoCameraShake、PlayAudioEvent） |
 | greymoor_01 | 56 | Geo Rock Deepnest·Geo Rock（AudioPlayRandom、ObjectJitter、PlayRandomAudioClipTable）；FlyAway Crow·Control（AudioPlayRandomVoiceFromTable、PlayAudioEvent、PlayAudioEventRandom）；FlyAway Crow·Control（AudioPlayRandomVoiceFromTable、PlayAudioEvent、PlayAudioEventRandom） |
 | peak_05e | 55 | Snowflake Chunk·Control（AudioPlaySimpleV2、DoCameraShakeV2、LimitedPlayAudioClipOnSource）；Snowflake Chunk·Control（AudioPlaySimpleV2、DoCameraShakeV2、LimitedPlayAudioClipOnSource）；Snowflake Chunk·Control（AudioPlaySimpleV2、DoCameraShakeV2、LimitedPlayAudioClipOnSource） |
