@@ -540,7 +540,7 @@ internal static class BundleScanner {
             .Select(path => new BundleRef(path, Path.GetRelativePath(bundleDir, path).Replace('\\', '/'), new FileInfo(path).Length))
             .Where(b => PrefixOf(b.Rel) is not ("monoscripts" or "unitybuiltinassets"))
             .Where(b => filter == null || b.Rel.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                        (CollectPersistent && PrefixOf(b.Rel) == "fsmtemplates"))
+                        ((CollectPersistent || ActionParams.FsmPattern != null) && PrefixOf(b.Rel) == "fsmtemplates"))
             .OrderBy(b => b.Rel, StringComparer.Ordinal)
             .ToList();
 
@@ -1324,7 +1324,9 @@ internal static class ActionParams {
         switch (type) {
             case ParamType.FsmEvent:
             case ParamType.String:
-                return Quote(Item(actionData, "stringParams", position)?.AsString);
+                return Item(actionData, "stringParams", position) is { } text
+                    ? Quote(text.AsString)
+                    : OldString(actionData, position, paramIndex);
             case ParamType.FsmString:
                 return Variable(Item(actionData, "fsmStringParams", position), value => Quote(value.AsString));
             case ParamType.FsmBool:
@@ -1332,15 +1334,19 @@ internal static class ActionParams {
                     ? Variable(fsmBool, value => value.AsBool.ToString())
                     : OldFsmBool(actionData, position, paramIndex);
             case ParamType.FsmFloat:
-                return Variable(Item(actionData, "fsmFloatParams", position), value => value.AsFloat.ToString("R"));
+                return Item(actionData, "fsmFloatParams", position) is { } fsmFloat
+                    ? Variable(fsmFloat, value => value.AsFloat.ToString("R"))
+                    : OldFsmFloat(actionData, position, paramIndex);
             case ParamType.FsmInt:
                 return Variable(Item(actionData, "fsmIntParams", position), value => value.AsInt.ToString());
             case ParamType.FsmOwnerDefault:
-                // OwnerDefaultOption: 0 is UseOwner, 1 is SpecifyGameObject
-                return Item(actionData, "fsmOwnerDefaultParams", position)?.Get("ownerOption")?.AsInt switch {
+                // OwnerDefaultOption: 0 is UseOwner, 1 is SpecifyGameObject; a specified object is named by the
+                // variable that holds it, or by its path ID when it is a direct reference
+                var ownerDefault = Item(actionData, "fsmOwnerDefaultParams", position);
+                return ownerDefault?.Get("ownerOption")?.AsInt switch {
                     null => "<missing>",
                     0 => "owner",
-                    _ => "gameObject",
+                    _ => Variable(ownerDefault.Get("gameObject"), value => $"<object {value.Get("m_PathID")?.AsLong}>"),
                 };
             case ParamType.Boolean:
                 return Bytes(actionData, position, 1) is { } flag ? (flag[0] != 0).ToString() : "<missing>";
@@ -1409,6 +1415,46 @@ internal static class ActionParams {
         return size > 2 && Bytes(actionData, position + 2, size - 2) is { } name
             ? $"var {System.Text.Encoding.UTF8.GetString(name)}"
             : "<missing>";
+    }
+
+    /// <summary>
+    /// Reads an FsmFloat that PlayMaker saved in byteData, as it did before fsmFloatParams: four bytes for the value, a
+    /// byte for whether a variable fills it in, and the name of the variable in the rest of the parameter's bytes.
+    /// </summary>
+    private static string OldFsmFloat(AssetTypeValueField actionData, int position, int paramIndex) {
+        if (Bytes(actionData, position, 5) is not { } head) {
+            return "<missing>";
+        }
+
+        if (head[4] == 0) {
+            return BitConverter.ToSingle(head, 0).ToString("R");
+        }
+
+        var size = ParamByteSize(actionData, paramIndex);
+        return size > 5 && Bytes(actionData, position + 5, size - 5) is { } name
+            ? $"var {System.Text.Encoding.UTF8.GetString(name)}"
+            : "<missing>";
+    }
+
+    /// <summary>
+    /// Reads a string or an event name that PlayMaker saved in byteData, as UTF-8 filling the parameter's bytes.
+    /// </summary>
+    private static string OldString(AssetTypeValueField actionData, int position, int paramIndex) {
+        var size = ParamByteSize(actionData, paramIndex);
+        if (size == 0) {
+            return "\"\"";
+        }
+
+        return Bytes(actionData, position, size) is { } text
+            ? Quote(System.Text.Encoding.UTF8.GetString(text))
+            : "<missing>";
+    }
+
+    private static int ParamByteSize(AssetTypeValueField actionData, int paramIndex) {
+        var sizes = actionData.Get("paramByteDataSize", "Array");
+        return sizes != null && paramIndex >= 0 && paramIndex < sizes.Children.Count
+            ? sizes.Children[paramIndex].AsInt
+            : 0;
     }
 
     /// <summary>
