@@ -10,7 +10,8 @@ using System.Reflection.PortableExecutable;
 //   2) types that read Time.deltaTime inside per-frame methods
 //   3) call sites that fetch the single HeroController instance
 //   4) IL listings of "Type::Method" targets, or "Type::*" for all methods of a type (args override the defaults)
-// Callers mode: --callers Type::method ...  (prefix "!" to list callers without IL context)
+// Callers mode: --callers Type::method ...  (prefix "!" to list callers without IL context); Type::field works too
+//   and finds every read and write of that field
 //   lists methods calling the given APIs and prints IL context around each call
 // Find mode: --find text ...  lists types, fields and methods whose names contain any text (case-insensitive)
 // Strings mode: --strings text ...  lists methods with string literals containing any text (case-insensitive)
@@ -203,12 +204,21 @@ foreach (var file in files)
                         }
                     }
                 }
+                // Fields too, so that "who writes this flag" is one search: a coroutine that sets it lives in a
+                // nested type no Type::* dump reaches
+                if (oc.OperandType == OperandType.InlineField)
+                {
+                    var (_, ftn, ffn) = FieldTarget(md, BitConverter.ToInt32(il, i));
+                    if (ftn != null && callerTargets.Contains($"{ftn}::{ffn}")) hitsInMethod.Add($"{ftn}::{ffn}");
+                }
                 i += OperandSize(oc.OperandType);
             }
 
+            // Nested types by "Outer/Nested", as --find prints them, or every coroutine is just Outer::MoveNext
+            var callerName = isTopLevel ? fullName : $"{outerFull}/{simpleName}";
             if (hitsInMethod.Count > 0)
             {
-                callerHits.Add($"  {outerFull}::{methodName}  ({il.Length} bytes of IL) -> {string.Join(", ", hitsInMethod)}");
+                callerHits.Add($"  {callerName}::{methodName}  ({il.Length} bytes of IL) -> {string.Join(", ", hitsInMethod)}");
                 var snippetKeys = hitsInMethod.Where(h => !listOnlyTargets.Contains(h)).ToList();
                 if (snippetKeys.Count > 0)
                 {
@@ -222,7 +232,7 @@ foreach (var file in files)
                             include[j] = true;
                         }
                     }
-                    callerSnippets.Add($"--- {outerFull}::{methodName}  ({Path.GetFileName(file)}) ---");
+                    callerSnippets.Add($"--- {callerName}::{methodName}  ({Path.GetFileName(file)}) ---");
                     int last = -1;
                     for (int j = 0; j < lines.Count; j++)
                     {
@@ -492,6 +502,32 @@ static (string ns, string type, string method) MethodTarget(MetadataReader md, i
             {
                 var spec = md.GetMethodSpecification(MetadataTokens.MethodSpecificationHandle(row));
                 return MethodTarget(md, MetadataTokens.GetToken(spec.Method));
+            }
+        }
+    }
+    catch { }
+    return (null, null, null);
+}
+
+static (string ns, string type, string field) FieldTarget(MetadataReader md, int token)
+{
+    try
+    {
+        int table = (token >> 24) & 0xFF;
+        int row = token & 0x00FFFFFF;
+        switch (table)
+        {
+            case 0x0A:
+            {
+                var mr = md.GetMemberReference(MetadataTokens.MemberReferenceHandle(row));
+                var (ns, tn) = TypeName(md, mr.Parent);
+                return (ns, tn, md.GetString(mr.Name));
+            }
+            case 0x04:
+            {
+                var f = md.GetFieldDefinition(MetadataTokens.FieldDefinitionHandle(row));
+                var td = md.GetTypeDefinition(f.GetDeclaringType());
+                return (md.GetString(td.Namespace), md.GetString(td.Name), md.GetString(f.Name));
             }
         }
     }
