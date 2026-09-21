@@ -334,6 +334,9 @@ internal sealed class GameObjectInfo {
     public long TransformPathId;
     public bool IsRect;
     public readonly List<string> ComponentClasses = new();
+
+    // The local position of its transform, read only for --params with --fsm
+    public float[] LocalPosition;
 }
 
 internal sealed class FsmRecord {
@@ -465,6 +468,12 @@ internal sealed class FileContext {
                     if (componentInfo.TypeId is (int) AssetClassID.Transform or (int) AssetClassID.RectTransform) {
                         gameObject.TransformPathId = componentId;
                         gameObject.IsRect = componentInfo.TypeId == (int) AssetClassID.RectTransform;
+                        if (ActionParams.FsmPattern != null &&
+                            _manager.GetBaseField(_instance, componentInfo).Get("m_LocalPosition") is { } local) {
+                            gameObject.LocalPosition = [
+                                local["x"].AsFloat, local["y"].AsFloat, local["z"].AsFloat
+                            ];
+                        }
                     } else if (MonoClasses.TryGetValue(componentId, out var className) && className != null) {
                         gameObject.ComponentClasses.Add(className);
                     }
@@ -754,8 +763,21 @@ internal static class BundleScanner {
                     GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
                 };
 
-                if (ActionParams.ReadStructuredParams) {
+                if (ActionParams.ReadStructuredParams || ActionParams.FsmPattern != null) {
                     record.Variables = ReadVariables(fsm);
+                }
+
+                // Whether PlayMaker starts the FSM over when its object is switched back on, and whether it puts the
+                // variables back to how they were saved when it does: both decide what a creature that changes hands
+                // wakes up as
+                if (ActionParams.FsmPattern != null) {
+                    foreach (var setting in new[] { "restartOnEnable", "RestartOnEnable", "resetVariablesOnEnable",
+                                 "ResetVariablesOnEnable" }) {
+                        var field = fsm.Get(setting);
+                        if (field?.Value != null) {
+                            record.Variables[$"setting:{setting}"] = field.AsBool.ToString();
+                        }
+                    }
                 }
 
                 var template = root.Get("fsmTemplate");
@@ -895,6 +917,15 @@ internal static class BundleScanner {
             record.ObjectPath = string.Join("/", ancestors.AsEnumerable().Reverse().Select(a => a.Name).Append(record.ObjectName));
             record.InArena = HasComponent(gameObject, "BattleScene") || ancestors.Any(a => HasComponent(a, "BattleScene"));
             record.Components = gameObject?.ComponentClasses.ToList() ?? new List<string>();
+
+            // Where it stands, as the sum of the local positions up the hierarchy, which is the world position for
+            // anything that is neither rotated nor scaled on the way; z is what puts a creature behind the scenery
+            if (record.Variables != null && gameObject?.LocalPosition != null) {
+                var chain = ancestors.Prepend(gameObject).Where(a => a.LocalPosition != null).ToList();
+                record.Variables["setting:position"] =
+                    $"({chain.Sum(a => a.LocalPosition[0]):0.##}, {chain.Sum(a => a.LocalPosition[1]):0.##}, " +
+                    $"{chain.Sum(a => a.LocalPosition[2]):0.###})";
+            }
 
             // SSMP never registers corpses, see EntityManager.CollectEntityCandidates
             if (kind == "corpse" || IsCorpse(gameObject) || ancestors.Any(IsCorpse)) {
@@ -1264,6 +1295,23 @@ internal static class ActionParams {
     /// example entity types or object names.
     /// </summary>
     public static void Print(ScanResult scan) {
+        foreach (var error in scan.Errors) {
+            Console.WriteLine($"error: {error}");
+        }
+
+        // With the FSMs picked by name, each one's own variables and start settings too, per object: the parameters
+        // say what a state does, these say which road the start state takes
+        if (FsmPattern != null) {
+            foreach (var record in scan.Fsms.Where(r => FsmPattern.IsMatch(r.FsmName ?? "") && r.Variables != null)
+                         .OrderBy(r => r.Scene).ThenBy(r => r.ObjectPath)) {
+                Console.WriteLine(
+                    $"== variables {record.Scene} | {record.ObjectPath} | {record.FsmName} (start {record.StartState}): " +
+                    string.Join("; ", record.Variables.Select(v => $"{v.Key}={v.Value}")) +
+                    $"; components: {string.Join(", ", record.Components ?? [])}"
+                );
+            }
+        }
+
         var uses = scan.Fsms
             .Where(record => FsmPattern == null || FsmPattern.IsMatch(record.FsmName ?? ""))
             .SelectMany(record => record.States.SelectMany(state => state.Params.Select(line =>
