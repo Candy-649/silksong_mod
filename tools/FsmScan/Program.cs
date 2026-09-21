@@ -82,6 +82,7 @@ if (options.TryGetValue("params", out var paramActions)) {
     ActionParams.ActionPattern = new Regex(paramActions);
     ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
     ActionParams.FsmPattern = options.TryGetValue("fsm", out var paramFsms) ? new Regex(paramFsms) : null;
+    ActionParams.Combinations = options.TryGetValue("combinations", out var combinationsText) ? int.Parse(combinationsText) : 0;
 }
 
 var audit = AuditData.Load(auditPath);
@@ -90,6 +91,14 @@ Console.WriteLine(
     $"Audit: SSMP {audit.SsmpBranch} @ {audit.SsmpCommit}, {audit.Actions.Count(a => a.IsGap)} gap actions; " +
     $"registry: {registry.Entries.Count} entries ({registry.IgnoredEntries} with unknown types ignored)"
 );
+
+// Copy variables mode: --copyvars out.tsv lists every object variable that a replicated action works on, and whether
+// the scene client's copy of the creature ever gets a value for it
+if (options.TryGetValue("copyvars", out var copyVarsOut)) {
+    ActionParams.ReadStructuredParams = true;
+    CopyVariables.Write(BundleScanner.Run(bundleDir, filter, limit, registry), ssmpDir, copyVarsOut);
+    return;
+}
 
 var scan = BundleScanner.Run(bundleDir, filter, limit, registry);
 if (ActionParams.ActionPattern != null) {
@@ -828,6 +837,17 @@ internal static class BundleScanner {
             }
         }
 
+        // Object variables only say whether the scene data fills them in, which is all --copyvars needs
+        var objects = fsm.Get("variables", "gameObjectVariables", "Array");
+        foreach (var variable in objects?.Children ?? []) {
+            var name = variable.Get("name")?.AsString;
+            if (!string.IsNullOrEmpty(name)) {
+                variables[$"gameobject:{name}"] = variable.Get("value", "m_PathID")?.AsLong is long id and not 0
+                    ? $"<object {id}>"
+                    : "null";
+            }
+        }
+
         return variables;
     }
 
@@ -1183,6 +1203,9 @@ internal static class ActionParams {
     }
 
     private const int MaxCombinations = 15;
+
+    // How many parameter combinations to print per category, for --combinations; 0 keeps the default
+    public static int Combinations;
     private const int MaxExamples = 4;
     private const int MaxTemplates = 6;
 
@@ -1317,7 +1340,7 @@ internal static class ActionParams {
             .SelectMany(record => record.States.SelectMany(state => state.Params.Select(line =>
                 (Record: record, Line: FsmPattern == null ? line : $"[{state.Name}] {line}"))))
             .ToList();
-        var maxCombinations = FsmPattern == null ? MaxCombinations : 200;
+        var maxCombinations = Combinations > 0 ? Combinations : FsmPattern == null ? MaxCombinations : 200;
         foreach (var category in uses.GroupBy(use => use.Record.Category).OrderByDescending(group => group.Count())) {
             var objects = category.Select(use => use.Record.ObjectName).Distinct().Count();
             var combinations = category.GroupBy(use => use.Line).OrderByDescending(group => group.Count()).ToList();
@@ -1329,8 +1352,8 @@ internal static class ActionParams {
                 );
             }
 
-            if (combinations.Count > MaxCombinations) {
-                Console.WriteLine($"  ... {combinations.Count - MaxCombinations} more combinations");
+            if (combinations.Count > maxCombinations) {
+                Console.WriteLine($"  ... {combinations.Count - maxCombinations} more combinations");
             }
         }
 
@@ -1419,9 +1442,56 @@ internal static class ActionParams {
                     : $"{Quote(functionCall.Get("FunctionName")?.AsString)}({Quote(functionCall.Get("parameterType")?.AsString)})";
             case (ParamType) 39:
                 return FsmVar(Item(actionData, "fsmVarParams", position));
+            case (ParamType) 31:
+                return EventTarget(Item(actionData, "fsmEventTargetParams", position));
             default:
                 return $"<type {(int) type}>";
         }
+    }
+
+    /// <summary>
+    /// Who an FsmEventTarget sends to: the kind of target, and for an object the object as any action target names it
+    /// (owner, a variable, or a direct reference), with the FSM name and whether the children hear it too.
+    /// </summary>
+    private static string EventTarget(AssetTypeValueField eventTarget) {
+        if (eventTarget == null) {
+            return "<missing>";
+        }
+
+        var target = eventTarget.Get("target")?.AsInt;
+        var parts = new List<string> {
+            target switch {
+                0 => "self",
+                1 => "object",
+                2 => "object fsm",
+                3 => "fsm component",
+                4 => "broadcast",
+                5 => "host fsm",
+                6 => "sub fsms",
+                null => "<missing>",
+                _ => $"target {target}",
+            }
+        };
+
+        if (target is 1 or 2) {
+            var owner = eventTarget.Get("gameObject");
+            parts.Add(owner?.Get("ownerOption")?.AsInt switch {
+                null => "<missing>",
+                0 => "owner",
+                _ => Variable(owner.Get("gameObject"), value => $"<object {value.Get("m_PathID")?.AsLong}>"),
+            });
+        }
+
+        var fsmName = Variable(eventTarget.Get("fsmName"), value => Quote(value.AsString));
+        if (fsmName != "\"\"" && fsmName != "<missing>") {
+            parts.Add($"fsm {fsmName}");
+        }
+
+        if (eventTarget.Get("sendToChildren", "value")?.AsBool == true) {
+            parts.Add("and children");
+        }
+
+        return $"<{string.Join(" ", parts)}>";
     }
 
     private static AssetTypeValueField Item(AssetTypeValueField actionData, string arrayName, int position) {
