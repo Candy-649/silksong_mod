@@ -346,6 +346,8 @@ internal sealed class GameObjectInfo {
     public string Name;
     public long TransformPathId;
     public bool IsRect;
+    // Its physics layer, which decides which colliders its triggers can see
+    public int Layer;
     public readonly List<string> ComponentClasses = new();
 
     // The local position of its transform, read only for --params with --fsm
@@ -463,7 +465,9 @@ internal sealed class FileContext {
         var info = _instance.file.GetAssetInfo(pathId);
         if (info != null && info.TypeId == (int) AssetClassID.GameObject) {
             var field = _manager.GetBaseField(_instance, info);
-            gameObject = new GameObjectInfo { PathId = pathId, Name = field["m_Name"].AsString };
+            gameObject = new GameObjectInfo {
+                PathId = pathId, Name = field["m_Name"].AsString, Layer = field.Get("m_Layer")?.AsInt ?? 0
+            };
             var components = field.Get("m_Component", "Array");
             if (components != null) {
                 foreach (var pair in components.Children) {
@@ -1066,7 +1070,8 @@ internal static class ComponentDumper {
                 var root = manager.GetBaseField(instance, info);
                 var owner = context.GetGameObject(root.Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
                 var name = owner?.Name ?? root.Get("m_Name")?.AsString ?? "?";
-                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}");
+                var layer = owner != null ? $" (layer {owner.Layer})" : "";
+                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}");
                 Print(context, root, "", fieldRegex, 0);
                 found++;
             }
