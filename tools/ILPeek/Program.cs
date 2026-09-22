@@ -111,12 +111,12 @@ foreach (var file in files)
             foreach (var fh in td.GetFields())
             {
                 var fieldName = md.GetString(md.GetFieldDefinition(fh).Name);
-                if (Matches(fieldName)) searchHits.Add($"field   {displayName}::{fieldName}");
+                if (Matches(fieldName) || Matches($"{simpleName}::{fieldName}")) searchHits.Add($"field   {displayName}::{fieldName}");
             }
             foreach (var mh in td.GetMethods())
             {
                 var name = md.GetString(md.GetMethodDefinition(mh).Name);
-                if (Matches(name)) searchHits.Add($"method  {displayName}::{name}");
+                if (Matches(name) || Matches($"{simpleName}::{name}")) searchHits.Add($"method  {displayName}::{name}");
             }
             continue;
         }
