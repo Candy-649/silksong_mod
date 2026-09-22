@@ -440,7 +440,7 @@ static string ResolveToken(MetadataReader md, int token)
             case 0x2B:
             {
                 var spec = md.GetMethodSpecification(MetadataTokens.MethodSpecificationHandle(row));
-                return ResolveToken(md, MetadataTokens.GetToken(spec.Method)) + "<T>";
+                return ResolveToken(md, MetadataTokens.GetToken(spec.Method)) + $"<{GenericArguments(md, spec)}>";
             }
         }
     }
@@ -449,6 +449,39 @@ static string ResolveToken(MetadataReader md, int token)
 }
 
 static string Q(string ns, string n) => string.IsNullOrEmpty(ns) ? n : $"{ns}.{n}";
+
+// The type arguments of a generic method call, like the T of GetComponent<T>, which tells two such calls apart
+static string GenericArguments(MetadataReader md, MethodSpecification spec)
+{
+    try
+    {
+        var br = md.GetBlobReader(spec.Signature);
+        if (br.ReadByte() != 0x0A) return "T"; // not a generic method instantiation
+        var count = br.ReadCompressedInteger();
+        var names = new List<string>();
+        for (var i = 0; i < count; i++)
+        {
+            var elementType = br.ReadByte();
+            if (elementType is 0x11 or 0x12) // VALUETYPE or CLASS, followed by the type
+            {
+                var (ns, n) = TypeName(md, br.ReadTypeHandle());
+                names.Add(Q(ns, n));
+            }
+            else
+            {
+                // Anything else (a primitive, an array, a nested generic) is named no further; the rest can't be read
+                names.Add($"element 0x{elementType:X2}");
+                break;
+            }
+        }
+
+        return string.Join(", ", names);
+    }
+    catch
+    {
+        return "T";
+    }
+}
 
 static (string ns, string name) TypeName(MetadataReader md, EntityHandle h)
 {
