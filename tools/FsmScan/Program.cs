@@ -17,7 +17,9 @@ using AssetsTools.NET.Extra;
 //            [--fields <regex>] [--resolve <bundle path substring>]  to print the serialized fields of every MonoBehaviour
 //            with that script class, with references to MonoBehaviours in the --resolve bundles printed by name
 //    or: dotnet run -c Release --project tools/FsmScan -- --params <action type regex> [--fields <regex>]
-//            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting
+//            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting;
+//            with --fsm, --templates <regex> prints every RunFSM template whose name, strings or parameters match,
+//            and --states 1 prints each matching FSM's own states with their transitions
 //    or: dotnet run -c Release --project tools/FsmScan -- --persistent <out.tsv> [--filter ...]  to list every saved
 //            object in the scenes with the FSMs and FSM actions on it and on its parent
 //    or: dotnet run -c Release --project tools/FsmScan -- --interactions <scenes|all> [--out <interactions.tsv>]
@@ -83,6 +85,8 @@ if (options.TryGetValue("params", out var paramActions)) {
     ActionParams.FieldPattern = options.TryGetValue("fields", out var paramFields) ? new Regex(paramFields) : null;
     ActionParams.FsmPattern = options.TryGetValue("fsm", out var paramFsms) ? new Regex(paramFsms) : null;
     ActionParams.Combinations = options.TryGetValue("combinations", out var combinationsText) ? int.Parse(combinationsText) : 0;
+    ActionParams.TemplatePattern = options.TryGetValue("templates", out var templateText) ? new Regex(templateText) : null;
+    ActionParams.PrintStates = options.ContainsKey("states");
 }
 
 var audit = AuditData.Load(auditPath);
@@ -1215,6 +1219,17 @@ internal static class ActionParams {
     // Limits the printed actions to FSMs with a matching name, and prefixes each combination with its state
     public static Regex FsmPattern;
 
+    // For --templates: prints every template whose name, strings or parameters match, not only the first few
+    public static Regex TemplatePattern;
+
+    // For --states with --fsm: prints each matching FSM's own states the way templates are printed, transitions included
+    public static bool PrintStates;
+
+    // The names of the scanned templates by path ID, which is how Value prints the template of a RunFSM
+    private static Dictionary<long, string> _templateNames = new();
+
+    private static readonly Regex TemplateReference = new(@"<template (-?\d+)>");
+
     // Whether ReadStructured reads the parameters of every action, for --rooms
     public static bool ReadStructuredParams;
 
@@ -1322,6 +1337,15 @@ internal static class ActionParams {
             Console.WriteLine($"error: {error}");
         }
 
+        _templateNames = scan.Templates
+            .Select(pair => (
+                Id: long.TryParse(pair.Key[(pair.Key.LastIndexOf(':') + 1)..], out var id) ? id : 0,
+                Name: pair.Value.Name ?? "?"
+            ))
+            .Where(t => t.Id != 0)
+            .GroupBy(t => t.Id)
+            .ToDictionary(group => group.Key, group => group.First().Name);
+
         // With the FSMs picked by name, each one's own variables and start settings too, per object: the parameters
         // say what a state does, these say which road the start state takes
         if (FsmPattern != null) {
@@ -1332,6 +1356,10 @@ internal static class ActionParams {
                     string.Join("; ", record.Variables.Select(v => $"{v.Key}={v.Value}")) +
                     $"; components: {string.Join(", ", record.Components ?? [])}"
                 );
+                if (PrintStates) {
+                    Console.WriteLine($"   global transitions: {string.Join("; ", record.GlobalTransitions ?? [])}");
+                    PrintStateList(record.States);
+                }
             }
         }
 
@@ -1348,7 +1376,8 @@ internal static class ActionParams {
             foreach (var combination in combinations.Take(maxCombinations)) {
                 var examples = combination.Select(use => use.Record.EntityType ?? use.Record.ObjectName).Distinct();
                 Console.WriteLine(
-                    $"  {combination.Count(),6}  {combination.Key}  e.g. {string.Join("; ", examples.Take(MaxExamples))}"
+                    $"  {combination.Count(),6}  {NameTemplates(combination.Key)}  " +
+                    $"e.g. {string.Join("; ", examples.Take(MaxExamples))}"
                 );
             }
 
@@ -1358,25 +1387,37 @@ internal static class ActionParams {
         }
 
         // Sub-FSMs started with RunFSM come from templates that no FSM record points at, so print the whole templates
-        // that use the actions, with each state's transitions and strings (which include animation clip names)
-        foreach (var template in scan.Templates.Values.Where(t => t.States.Any(s => s.Params.Count > 0)).Take(MaxTemplates)) {
+        // that use the actions, with each state's transitions and strings (which include animation clip names).
+        // --templates picks them by a pattern on their name, strings or parameters instead, and prints every match
+        var templates = TemplatePattern == null
+            ? scan.Templates.Values.Where(t => t.States.Any(s => s.Params.Count > 0)).Take(MaxTemplates)
+            : scan.Templates.Values.Where(t => TemplatePattern.IsMatch(t.Name ?? "") || t.States.Any(s =>
+                s.Strings.Any(TemplatePattern.IsMatch) || s.Params.Any(TemplatePattern.IsMatch)));
+        foreach (var template in templates) {
             Console.WriteLine($"== template {template.Name}: {template.States.Count} states");
-            foreach (var state in template.States) {
-                Console.WriteLine($"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}");
-                if (state.Params.Count > 0) {
-                    Console.WriteLine($"      params: {string.Join("; ", state.Params)}");
-                }
+            PrintStateList(template.States);
+        }
+    }
 
-                if (state.Transitions.Count > 0) {
-                    Console.WriteLine($"      transitions: {string.Join("; ", state.Transitions)}");
-                }
+    private static void PrintStateList(List<StateData> states) {
+        foreach (var state in states) {
+            Console.WriteLine($"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}");
+            if (state.Params.Count > 0) {
+                Console.WriteLine($"      params: {NameTemplates(string.Join("; ", state.Params))}");
+            }
 
-                if (state.Strings.Count > 0) {
-                    Console.WriteLine($"      strings: {string.Join("; ", state.Strings)}");
-                }
+            if (state.Transitions.Count > 0) {
+                Console.WriteLine($"      transitions: {string.Join("; ", state.Transitions)}");
+            }
+
+            if (state.Strings.Count > 0) {
+                Console.WriteLine($"      strings: {string.Join("; ", state.Strings)}");
             }
         }
     }
+
+    private static string NameTemplates(string text) => TemplateReference.Replace(text, match =>
+        _templateNames.TryGetValue(long.Parse(match.Groups[1].Value), out var name) ? $"<template {name}>" : match.Value);
 
     private static string ShortName(string typeName) => typeName[(typeName.LastIndexOf('.') + 1)..];
 
@@ -1444,6 +1485,11 @@ internal static class ActionParams {
                 return FsmVar(Item(actionData, "fsmVarParams", position));
             case (ParamType) 31:
                 return EventTarget(Item(actionData, "fsmEventTargetParams", position));
+            case (ParamType) 38:
+                // FsmTemplateControl, as RunFSM holds it: the path ID of its template, which Print turns into a name
+                var templatePathId = Item(actionData, "fsmTemplateControlParams", position)
+                    ?.Get("target", "m_PathID")?.AsLong ?? 0;
+                return templatePathId != 0 ? $"<template {templatePathId}>" : "<no template>";
             default:
                 return $"<type {(int) type}>";
         }
