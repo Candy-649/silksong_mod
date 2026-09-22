@@ -27,6 +27,8 @@ using AssetsTools.NET.Extra;
 //    or: dotnet run -c Release --project tools/FsmScan -- --pdflags <out dir> [--filter ...]  to list every FSM action and
 //            serialized component field that writes or reads a PlayerData field, as playerdata-writes.tsv and
 //            playerdata-reads.tsv
+//    or: dotnet run -c Release --project tools/FsmScan -- --tree <root object name regex> [--filter ...]  to print the
+//            objects under each matching root as a tree, with every component on them
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -47,6 +49,11 @@ if (options.TryGetValue("depth", out var depthText)) {
 
 if (options.TryGetValue("dump", out var dumpClass)) {
     ComponentDumper.Run(bundleDir, filter, dumpClass, options.GetValueOrDefault("fields"), options.GetValueOrDefault("resolve"));
+    return;
+}
+
+if (options.TryGetValue("tree", out var treeRoot)) {
+    TreeDumper.Run(bundleDir, filter, treeRoot);
     return;
 }
 
@@ -350,8 +357,11 @@ internal sealed class GameObjectInfo {
     public int Layer;
     public readonly List<string> ComponentClasses = new();
 
-    // The local position of its transform, read only for --params with --fsm
+    // The local position of its transform, read only for --params with --fsm and for --dump
     public float[] LocalPosition;
+
+    // The sorting layer and order of its renderer, which decide what it is drawn in front of; read only for --dump
+    public string Sorting;
 }
 
 internal sealed class FsmRecord {
@@ -452,6 +462,27 @@ internal sealed class FileContext {
         return file != null && _scriptNames.TryGetValue($"{file}:{pointer.PathId}", out var name) ? name : null;
     }
 
+    /// <summary>
+    /// What an object of this file is, for printing a reference to it: a GameObject by its name, a component by the
+    /// name of its object and its class; null when the file has no such object.
+    /// </summary>
+    public string DescribeObject(long pathId) {
+        var info = _instance.file.GetAssetInfo(pathId);
+        if (info == null) {
+            return null;
+        }
+
+        if (info.TypeId == (int) AssetClassID.GameObject) {
+            return $"'{GetGameObject(pathId)?.Name}'";
+        }
+
+        var owner = GetGameObject(_manager.GetBaseField(_instance, info).Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
+        var type = info.TypeId == (int) AssetClassID.MonoBehaviour
+            ? ScriptClass(info) ?? "?script"
+            : ((AssetClassID) info.TypeId).ToString();
+        return owner != null ? $"'{owner.Name}' {type}" : type;
+    }
+
     public GameObjectInfo GetGameObject(long pathId) {
         if (pathId == 0) {
             return null;
@@ -485,12 +516,18 @@ internal sealed class FileContext {
                     if (componentInfo.TypeId is (int) AssetClassID.Transform or (int) AssetClassID.RectTransform) {
                         gameObject.TransformPathId = componentId;
                         gameObject.IsRect = componentInfo.TypeId == (int) AssetClassID.RectTransform;
-                        if (ActionParams.FsmPattern != null &&
+                        if ((ActionParams.FsmPattern != null || ComponentDumper.Running) &&
                             _manager.GetBaseField(_instance, componentInfo).Get("m_LocalPosition") is { } local) {
                             gameObject.LocalPosition = [
                                 local["x"].AsFloat, local["y"].AsFloat, local["z"].AsFloat
                             ];
                         }
+                    } else if (ComponentDumper.Running &&
+                               componentInfo.TypeId is (int) AssetClassID.MeshRenderer
+                                   or (int) AssetClassID.SpriteRenderer) {
+                        var renderer = _manager.GetBaseField(_instance, componentInfo);
+                        gameObject.Sorting = $"sorting layer {renderer.Get("m_SortingLayerID")?.AsInt} " +
+                                             $"order {renderer.Get("m_SortingOrder")?.AsInt}";
                     } else if (MonoClasses.TryGetValue(componentId, out var className) && className != null) {
                         gameObject.ComponentClasses.Add(className);
                     }
@@ -1009,11 +1046,17 @@ internal static class ComponentDumper {
     public static int MaxArrayItems = 8;
 
     /// <summary>
+    /// Whether a dump is running, which has the owners of the components read with their renderer and position.
+    /// </summary>
+    public static bool Running;
+
+    /// <summary>
     /// The names and classes of the objects that references point to, by "assets file name:path ID", for --resolve.
     /// </summary>
     private static Dictionary<string, string> _referenceNames;
 
     public static void Run(string bundleDir, string filter, string className, string fieldPattern, string resolveFilter) {
+        Running = true;
         var fieldRegex = fieldPattern == null ? null : new Regex(fieldPattern, RegexOptions.IgnoreCase);
         var manager = new AssetsManager();
         var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
@@ -1062,6 +1105,11 @@ internal static class ComponentDumper {
 
             instance.file.GenerateQuickLookup();
             var context = new FileContext(manager, instance, scriptNames);
+            // Known first, so that each owner is printed with the scripts on it
+            foreach (var info in monoBehaviours) {
+                context.MonoClasses[info.PathId] = context.ScriptClass(info);
+            }
+
             foreach (var info in monoBehaviours) {
                 if (context.ScriptClass(info) != className) {
                     continue;
@@ -1071,7 +1119,10 @@ internal static class ComponentDumper {
                 var owner = context.GetGameObject(root.Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
                 var name = owner?.Name ?? root.Get("m_Name")?.AsString ?? "?";
                 var layer = owner != null ? $" (layer {owner.Layer})" : "";
-                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}");
+                var looks = owner?.Sorting != null ? $" ({owner.Sorting})" : "";
+                var depth = owner?.LocalPosition != null ? $" (local z {owner.LocalPosition[2]:R})" : "";
+                var scripts = owner != null ? $" [{string.Join(", ", owner.ComponentClasses)}]" : "";
+                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{looks}{depth}{scripts}");
                 Print(context, root, "", fieldRegex, 0);
                 found++;
             }
@@ -1134,6 +1185,10 @@ internal static class ComponentDumper {
         var pathId = field["m_PathID"].AsLong;
         if (pathId == 0) {
             return "null";
+        }
+
+        if (fileId == 0 && context.DescribeObject(pathId) is { } local) {
+            return local;
         }
 
         var file = context.FileNameOf(fileId);
@@ -1455,7 +1510,9 @@ internal static class ActionParams {
                     ? Variable(fsmFloat, value => value.AsFloat.ToString("R"))
                     : OldFsmFloat(actionData, position, paramIndex);
             case ParamType.FsmInt:
-                return Variable(Item(actionData, "fsmIntParams", position), value => value.AsInt.ToString());
+                return Item(actionData, "fsmIntParams", position) is { } fsmInt
+                    ? Variable(fsmInt, value => value.AsInt.ToString())
+                    : OldFsmInt(actionData, position, paramIndex);
             case ParamType.FsmOwnerDefault:
                 // OwnerDefaultOption: 0 is UseOwner, 1 is SpecifyGameObject; a specified object is named by the
                 // variable that holds it, or by its path ID when it is a direct reference
@@ -1597,6 +1654,25 @@ internal static class ActionParams {
 
         if (head[4] == 0) {
             return BitConverter.ToSingle(head, 0).ToString("R");
+        }
+
+        var size = ParamByteSize(actionData, paramIndex);
+        return size > 5 && Bytes(actionData, position + 5, size - 5) is { } name
+            ? $"var {System.Text.Encoding.UTF8.GetString(name)}"
+            : "<missing>";
+    }
+
+    /// <summary>
+    /// Reads an FsmInt that PlayMaker saved in byteData, laid out like an FsmFloat: the value, whether it names a
+    /// variable, then the variable's name.
+    /// </summary>
+    private static string OldFsmInt(AssetTypeValueField actionData, int position, int paramIndex) {
+        if (Bytes(actionData, position, 5) is not { } head) {
+            return "<missing>";
+        }
+
+        if (head[4] == 0) {
+            return BitConverter.ToInt32(head, 0).ToString();
         }
 
         var size = ParamByteSize(actionData, paramIndex);
