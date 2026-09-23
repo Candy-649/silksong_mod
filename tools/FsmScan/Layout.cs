@@ -20,7 +20,15 @@ internal static class LayoutDumper {
     /// </summary>
     private static readonly string[] BossPathParts = ["Boss Scene", "Battle Scene", "Battle Gate", "Gates"];
 
-    public static void Run(string bundleDir, string scenes) {
+    /// <param name="bundleDir">The folder of the game's bundles.</param>
+    /// <param name="scenes">The scenes to print, separated by commas.</param>
+    /// <param name="extraClasses">More script classes to print wherever they are, separated by commas, each with its
+    /// simple serialized values; null for none.</param>
+    public static void Run(string bundleDir, string scenes, string extraClasses = null) {
+        var extras = new HashSet<string>(
+            (extraClasses ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            StringComparer.Ordinal
+        );
         var manager = new AssetsManager();
         var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
         manager.UnloadAll();
@@ -47,7 +55,7 @@ internal static class LayoutDumper {
                         context.MonoClasses[info.PathId] = context.ScriptClass(info);
                     }
 
-                    new SceneLayout(manager, instance, context).Print();
+                    new SceneLayout(manager, instance, context, extras).Print();
                 }
             } catch (Exception e) {
                 Console.WriteLine($"   error: {e.GetType().Name}: {e.Message}");
@@ -66,10 +74,21 @@ internal static class LayoutDumper {
         private readonly FileContext _context;
         private readonly Dictionary<long, (Vector3 Position, Quaternion Rotation, Vector3 Scale)> _worlds = new();
 
-        public SceneLayout(AssetsManager manager, AssetsFileInstance instance, FileContext context) {
+        /// <summary>
+        /// Script classes printed on top of the room ones, with their values.
+        /// </summary>
+        private readonly HashSet<string> _extras;
+
+        public SceneLayout(
+            AssetsManager manager,
+            AssetsFileInstance instance,
+            FileContext context,
+            HashSet<string> extras
+        ) {
             _manager = manager;
             _instance = instance;
             _context = context;
+            _extras = extras;
         }
 
         public void Print() {
@@ -86,7 +105,7 @@ internal static class LayoutDumper {
                     ancestors.AsEnumerable().Reverse().Select(ancestor => ancestor.Name).Append(gameObject.Name)
                 );
                 var classes = gameObject.ComponentClasses;
-                var isRoomObject = classes.Any(RoomClasses.Contains);
+                var isRoomObject = classes.Any(name => RoomClasses.Contains(name) || _extras.Contains(name));
                 var isBossObject = BossPathParts.Any(part => path.Contains(part, StringComparison.Ordinal));
                 if (!isRoomObject && !isBossObject) {
                     continue;
@@ -133,7 +152,8 @@ internal static class LayoutDumper {
                                 fsmNames.Add(
                                     _manager.GetBaseField(_instance, componentInfo).Get("fsm", "name")?.AsString ?? "?"
                                 );
-                            } else if (className is "CameraLockArea" or "TriggerEnterEvent") {
+                            } else if (className is "CameraLockArea" or "TriggerEnterEvent" ||
+                                       (className != null && _extras.Contains(className))) {
                                 extra += DescribeValues(className, _manager.GetBaseField(_instance, componentInfo));
                             }
 

@@ -29,6 +29,9 @@ using AssetsTools.NET.Extra;
 //            playerdata-reads.tsv
 //    or: dotnet run -c Release --project tools/FsmScan -- --tree <root object name regex> [--filter ...]  to print the
 //            objects under each matching root as a tree, with every component on them
+//    or: dotnet run -c Release --project tools/FsmScan -- --layout <scene,scene> [--classes <class,class>]  to print
+//            where the room objects of those scenes are, with world positions and collider bounds; --classes adds
+//            objects with those script classes, printed with their simple serialized values
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -58,7 +61,7 @@ if (options.TryGetValue("tree", out var treeRoot)) {
 }
 
 if (options.TryGetValue("layout", out var layoutScenes)) {
-    LayoutDumper.Run(bundleDir, layoutScenes);
+    LayoutDumper.Run(bundleDir, layoutScenes, options.GetValueOrDefault("classes"));
     return;
 }
 
