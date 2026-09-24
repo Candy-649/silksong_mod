@@ -31,7 +31,8 @@ using AssetsTools.NET.Extra;
 //            objects under each matching root as a tree, with every component on them
 //    or: dotnet run -c Release --project tools/FsmScan -- --layout <scene,scene> [--classes <class,class>]  to print
 //            where the room objects of those scenes are, with world positions and collider bounds; --classes adds
-//            objects with those script classes, printed with their simple serialized values
+//            objects with those script classes, printed with their simple serialized values; --region x0,y0,x1,y1
+//            prints instead every object whose collider reaches into that part of the world, with its layer
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -61,7 +62,9 @@ if (options.TryGetValue("tree", out var treeRoot)) {
 }
 
 if (options.TryGetValue("layout", out var layoutScenes)) {
-    LayoutDumper.Run(bundleDir, layoutScenes, options.GetValueOrDefault("classes"));
+    LayoutDumper.Run(
+        bundleDir, layoutScenes, options.GetValueOrDefault("classes"), options.GetValueOrDefault("region")
+    );
     return;
 }
 

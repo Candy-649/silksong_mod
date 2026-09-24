@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
@@ -24,11 +25,20 @@ internal static class LayoutDumper {
     /// <param name="scenes">The scenes to print, separated by commas.</param>
     /// <param name="extraClasses">More script classes to print wherever they are, separated by commas, each with its
     /// simple serialized values; null for none.</param>
-    public static void Run(string bundleDir, string scenes, string extraClasses = null) {
+    /// <param name="region">A part of the world as x0,y0,x1,y1: every object with a collider that reaches into it is
+    /// printed instead of the room objects, with its layer; null for the room objects.</param>
+    public static void Run(string bundleDir, string scenes, string extraClasses = null, string region = null) {
         var extras = new HashSet<string>(
             (extraClasses ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             StringComparer.Ordinal
         );
+        float[] area = null;
+        if (region != null) {
+            area = region.Split(',').Select(part => float.Parse(part.Trim(), CultureInfo.InvariantCulture)).ToArray();
+            if (area.Length != 4) {
+                throw new ArgumentException("--region takes x0,y0,x1,y1");
+            }
+        }
         var manager = new AssetsManager();
         var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
         manager.UnloadAll();
@@ -55,7 +65,7 @@ internal static class LayoutDumper {
                         context.MonoClasses[info.PathId] = context.ScriptClass(info);
                     }
 
-                    new SceneLayout(manager, instance, context, extras).Print();
+                    new SceneLayout(manager, instance, context, extras, area).Print();
                 }
             } catch (Exception e) {
                 Console.WriteLine($"   error: {e.GetType().Name}: {e.Message}");
@@ -79,16 +89,23 @@ internal static class LayoutDumper {
         /// </summary>
         private readonly HashSet<string> _extras;
 
+        /// <summary>
+        /// The part of the world whose colliders are printed, as x0, y0, x1, y1, or null for the room objects.
+        /// </summary>
+        private readonly float[] _region;
+
         public SceneLayout(
             AssetsManager manager,
             AssetsFileInstance instance,
             FileContext context,
-            HashSet<string> extras
+            HashSet<string> extras,
+            float[] region
         ) {
             _manager = manager;
             _instance = instance;
             _context = context;
             _extras = extras;
+            _region = region;
         }
 
         public void Print() {
@@ -107,6 +124,11 @@ internal static class LayoutDumper {
                 var classes = gameObject.ComponentClasses;
                 var isRoomObject = classes.Any(name => RoomClasses.Contains(name) || _extras.Contains(name));
                 var isBossObject = BossPathParts.Any(part => path.Contains(part, StringComparison.Ordinal));
+                if (_region != null) {
+                    PrintIfInRegion(info, gameObject, path, lines);
+                    continue;
+                }
+
                 if (!isRoomObject && !isBossObject) {
                     continue;
                 }
@@ -183,6 +205,56 @@ internal static class LayoutDumper {
         }
 
         /// <summary>
+        /// Adds a line for an object if any of its colliders reaches into <see cref="_region"/>: its path, whether it
+        /// starts switched off, its layer, and those colliders.
+        /// </summary>
+        private void PrintIfInRegion(AssetFileInfo info, GameObjectInfo gameObject, string path, List<string> lines) {
+            var field = _manager.GetBaseField(_instance, info);
+            var colliders = new List<string>();
+            foreach (var pair in field.Get("m_Component", "Array")?.Children ?? []) {
+                var pointer = pair.Get("component");
+                if (pointer == null || pointer["m_FileID"].AsInt != 0) {
+                    continue;
+                }
+
+                var componentInfo = _instance.file.GetAssetInfo(pointer["m_PathID"].AsLong);
+                if (componentInfo == null) {
+                    continue;
+                }
+
+                var typeId = (AssetClassID) componentInfo.TypeId;
+                if (typeId is not (AssetClassID.BoxCollider2D or AssetClassID.CapsuleCollider2D or
+                    AssetClassID.CircleCollider2D or AssetClassID.PolygonCollider2D or AssetClassID.EdgeCollider2D)) {
+                    continue;
+                }
+
+                var componentField = _manager.GetBaseField(_instance, componentInfo);
+                if (GetColliderBounds(typeId, componentField, gameObject.TransformPathId) is not { } bounds ||
+                    bounds.MaxX < _region[0] || bounds.MinX > _region[2] ||
+                    bounds.MaxY < _region[1] || bounds.MinY > _region[3]) {
+                    continue;
+                }
+
+                colliders.Add(DescribeCollider(typeId, componentField, gameObject.TransformPathId));
+            }
+
+            if (colliders.Count == 0) {
+                return;
+            }
+
+            var inactive = _context.Ancestors(gameObject).Append(gameObject).Any(IsSwitchedOff) ? " (inactive)" : "";
+            lines.Add($"   {path}{inactive} | layer {gameObject.Layer} | {string.Join("; ", colliders)}");
+        }
+
+        /// <summary>
+        /// Whether an object starts switched off itself, which switches off everything under it as well.
+        /// </summary>
+        private bool IsSwitchedOff(GameObjectInfo gameObject) {
+            var info = _instance.file.GetAssetInfo(gameObject.PathId);
+            return info != null && _manager.GetBaseField(_instance, info).Get("m_IsActive")?.AsBool == false;
+        }
+
+        /// <summary>
         /// Gets the world position, rotation and scale of a transform.
         /// </summary>
         private (Vector3 Position, Quaternion Rotation, Vector3 Scale) GetWorld(long transformPathId) {
@@ -219,9 +291,31 @@ internal static class LayoutDumper {
         }
 
         /// <summary>
-        /// Describes a collider with its kind, whether it's a trigger, and its bounds in the world.
+        /// Gets the bounds of a collider in the world, or null if it has no points.
         /// </summary>
-        private string DescribeCollider(AssetClassID typeId, AssetTypeValueField field, long transformPathId) {
+        private (float MinX, float MaxX, float MinY, float MaxY)? GetColliderBounds(
+            AssetClassID typeId,
+            AssetTypeValueField field,
+            long transformPathId
+        ) {
+            var points = GetColliderPoints(typeId, field);
+            if (points.Count == 0) {
+                return null;
+            }
+
+            var world = GetWorld(transformPathId);
+            var worldPoints = points
+                .Select(point =>
+                    world.Position + Vector3.Transform(world.Scale * new Vector3(point, 0f), world.Rotation))
+                .ToList();
+            return (worldPoints.Min(p => p.X), worldPoints.Max(p => p.X), worldPoints.Min(p => p.Y),
+                worldPoints.Max(p => p.Y));
+        }
+
+        /// <summary>
+        /// Gets the points that span a collider, in the space of its object.
+        /// </summary>
+        private static List<Vector2> GetColliderPoints(AssetClassID typeId, AssetTypeValueField field) {
             var offset = ReadVector2(field.Get("m_Offset"));
             var points = new List<Vector2>();
             switch (typeId) {
@@ -254,19 +348,21 @@ internal static class LayoutDumper {
                     break;
             }
 
+            return points;
+        }
+
+        /// <summary>
+        /// Describes a collider with its kind, whether it's a trigger, and its bounds in the world.
+        /// </summary>
+        private string DescribeCollider(AssetClassID typeId, AssetTypeValueField field, long transformPathId) {
             var name = typeId.ToString().Replace("Collider2D", "");
             var flags = (field.Get("m_IsTrigger")?.AsBool == true ? "trigger" : "solid") +
                         (field.Get("m_Enabled")?.AsBool == false ? ",disabled" : "");
-            if (points.Count == 0) {
+            if (GetColliderBounds(typeId, field, transformPathId) is not { } bounds) {
                 return $"{name}({flags})";
             }
 
-            var world = GetWorld(transformPathId);
-            var worldPoints = points
-                .Select(point => world.Position + Vector3.Transform(world.Scale * new Vector3(point, 0f), world.Rotation))
-                .ToList();
-            return $"{name}({flags}) x[{worldPoints.Min(p => p.X):F1}..{worldPoints.Max(p => p.X):F1}] " +
-                   $"y[{worldPoints.Min(p => p.Y):F1}..{worldPoints.Max(p => p.Y):F1}]";
+            return $"{name}({flags}) x[{bounds.MinX:F1}..{bounds.MaxX:F1}] y[{bounds.MinY:F1}..{bounds.MaxY:F1}]";
         }
 
         /// <summary>
