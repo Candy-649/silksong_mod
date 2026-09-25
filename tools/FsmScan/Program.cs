@@ -361,6 +361,8 @@ internal sealed class GameObjectInfo {
     public bool IsRect;
     // Its physics layer, which decides which colliders its triggers can see
     public int Layer;
+    // Its tag as the number the scene stores: 0 is Untagged, 20000 and up are the game's own tags in order
+    public int Tag;
     public readonly List<string> ComponentClasses = new();
 
     // The local position of its transform, read only for --params with --fsm and for --dump
@@ -503,7 +505,8 @@ internal sealed class FileContext {
         if (info != null && info.TypeId == (int) AssetClassID.GameObject) {
             var field = _manager.GetBaseField(_instance, info);
             gameObject = new GameObjectInfo {
-                PathId = pathId, Name = field["m_Name"].AsString, Layer = field.Get("m_Layer")?.AsInt ?? 0
+                PathId = pathId, Name = field["m_Name"].AsString, Layer = field.Get("m_Layer")?.AsInt ?? 0,
+                Tag = field.Get("m_Tag")?.AsInt ?? 0
             };
             var components = field.Get("m_Component", "Array");
             if (components != null) {
@@ -1125,10 +1128,11 @@ internal static class ComponentDumper {
                 var owner = context.GetGameObject(root.Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
                 var name = owner?.Name ?? root.Get("m_Name")?.AsString ?? "?";
                 var layer = owner != null ? $" (layer {owner.Layer})" : "";
+                var tag = owner is { Tag: not 0 } ? $" (tag {owner.Tag})" : "";
                 var looks = owner?.Sorting != null ? $" ({owner.Sorting})" : "";
                 var depth = owner?.LocalPosition != null ? $" (local z {owner.LocalPosition[2]:R})" : "";
                 var scripts = owner != null ? $" [{string.Join(", ", owner.ComponentClasses)}]" : "";
-                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{looks}{depth}{scripts}");
+                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{tag}{looks}{depth}{scripts}");
                 Print(context, root, "", fieldRegex, 0);
                 found++;
             }
