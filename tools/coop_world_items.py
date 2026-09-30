@@ -32,9 +32,11 @@ OWN_ACTIONS = re.compile(
     r'^(CollectableItem\w*|SetCollectablePickupItem|SavedItem\w*|SetGeoDrop|SetShardDrop|FlingObjectsFromGlobalPoolV3|'
     r'TakeCurrency|AddGeo|AddCurrency|DialogueYesNoItem\w*|CreateUIMsgGetItem|GetQuestReward\w*|SetToolUnlocked)$'
 )
+# The pustules save whether a player drew their sample from them (LifebloodPustule's persistentBroken, which sits on
+# the pustule's parent), like a pickup; each player has their own to draw from, as they take their own hits
 OWN_NAMES = re.compile(
     r'pickup|collectable|chest|heart piece|silk spool|memory|locket|nectar|deposit|shard|rosary|cocoon|summons_pin|'
-    r'moss_berry|relic|mimic',
+    r'moss_berry|relic|mimic|pustule',
     re.I,
 )
 # Rewards that one player gets for the object, on the object or its parent
