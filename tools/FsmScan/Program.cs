@@ -1544,7 +1544,9 @@ internal static class ActionParams {
             case ParamType.Enum:
                 return Bytes(actionData, position, 4) is { } number ? BitConverter.ToInt32(number).ToString() : "<missing>";
             case (ParamType) 19:
-                return Variable(Item(actionData, "fsmGameObjectParams", position), _ => "<object>");
+                // A direct reference is named by its path ID, so an empty one (SetParent to nothing) reads as null
+                return Variable(Item(actionData, "fsmGameObjectParams", position), value =>
+                    value.Get("m_PathID")?.AsLong is { } id and not 0 ? $"<object {id}>" : "null");
             case (ParamType) 28:
                 return Variable(Item(actionData, "fsmVector3Params", position), value =>
                     $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R}, {value.Get("z")?.AsFloat:R})");
