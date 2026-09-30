@@ -13,7 +13,7 @@ using AssetsTools.NET.Extra;
 /// see what a character is made of, such as which parts of the hero only show while it does something.
 /// </summary>
 internal static class TreeDumper {
-    public static void Run(string bundleDir, string filter, string rootPattern) {
+    public static void Run(string bundleDir, string filter, string rootPattern, int? tag = null) {
         var rootRegex = new Regex(rootPattern ?? ".", RegexOptions.IgnoreCase);
         var manager = new AssetsManager();
         var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
@@ -24,7 +24,7 @@ internal static class TreeDumper {
             .OrderBy(path => path, StringComparer.Ordinal);
         foreach (var path in paths) {
             try {
-                PrintBundle(manager, path, bundleDir, scriptNames, rootRegex);
+                PrintBundle(manager, path, bundleDir, scriptNames, rootRegex, tag);
             } catch (Exception e) {
                 Console.WriteLine($"error in {Path.GetFileName(path)}: {e.GetType().Name}: {e.Message}");
             } finally {
@@ -37,6 +37,7 @@ internal static class TreeDumper {
         public string Name;
         public bool Active;
         public int Layer;
+        public int Tag;
         public float Z;
         public readonly List<string> Components = new();
         public readonly List<long> Children = new();
@@ -48,7 +49,8 @@ internal static class TreeDumper {
         string path,
         string bundleDir,
         Dictionary<string, string> scriptNames,
-        Regex rootRegex
+        Regex rootRegex,
+        int? tag
     ) {
         var bundle = manager.LoadBundleFile(path, true);
         for (var i = 0; i < bundle.file.BlockAndDirInfo.DirectoryInfos.Count; i++) {
@@ -69,7 +71,8 @@ internal static class TreeDumper {
                 var node = new Node {
                     Name = field["m_Name"].AsString,
                     Active = field.Get("m_IsActive")?.AsBool ?? true,
-                    Layer = field.Get("m_Layer")?.AsInt ?? 0
+                    Layer = field.Get("m_Layer")?.AsInt ?? 0,
+                    Tag = field.Get("m_Tag")?.AsInt ?? 0
                 };
                 nodes[info.PathId] = node;
 
@@ -108,6 +111,32 @@ internal static class TreeDumper {
                     nodes[objectId].Parent = parentId;
                     nodes[parentId].Children.Add(objectId);
                 }
+            }
+
+            // With a tag, every object that carries it, wherever it is, under the path from the top of the room
+            if (tag != null) {
+                var printedBundle = false;
+                foreach (var (id, node) in nodes.OrderBy(pair => pair.Value.Name, StringComparer.Ordinal)) {
+                    if (node.Tag != tag) {
+                        continue;
+                    }
+
+                    if (!printedBundle) {
+                        printedBundle = true;
+                        Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)}");
+                    }
+
+                    var names = new List<string>();
+                    for (var current = node.Parent; current != 0 && nodes.TryGetValue(current, out var parent);
+                         current = parent.Parent) {
+                        names.Insert(0, parent.Name);
+                    }
+
+                    Console.WriteLine($"-- {string.Join("/", names)}");
+                    Print(nodes, id, 1);
+                }
+
+                continue;
             }
 
             foreach (var (id, node) in nodes.OrderBy(pair => pair.Value.Name, StringComparer.Ordinal)) {

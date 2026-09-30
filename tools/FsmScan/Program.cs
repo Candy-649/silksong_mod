@@ -29,6 +29,8 @@ using AssetsTools.NET.Extra;
 //            playerdata-reads.tsv
 //    or: dotnet run -c Release --project tools/FsmScan -- --tree <root object name regex> [--filter ...]  to print the
 //            objects under each matching root as a tree, with every component on them
+//            ([--tagged <tag number>] prints instead every object with that tag, with its path and what is under it;
+//            custom tags are 20000 + their index in the TagManager of globalgamemanagers)
 //    or: dotnet run -c Release --project tools/FsmScan -- --layout <scene,scene> [--classes <class,class>]  to print
 //            where the room objects of those scenes are, with world positions and collider bounds; --classes adds
 //            objects with those script classes, printed with their simple serialized values; --region x0,y0,x1,y1
@@ -57,7 +59,9 @@ if (options.TryGetValue("dump", out var dumpClass)) {
 }
 
 if (options.TryGetValue("tree", out var treeRoot)) {
-    TreeDumper.Run(bundleDir, filter, treeRoot);
+    TreeDumper.Run(
+        bundleDir, filter, treeRoot, options.TryGetValue("tagged", out var taggedText) ? int.Parse(taggedText) : null
+    );
     return;
 }
 
