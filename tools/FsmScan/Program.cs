@@ -1557,6 +1557,20 @@ internal static class ActionParams {
                 return FsmVar(Item(actionData, "fsmVarParams", position));
             case (ParamType) 31:
                 return EventTarget(Item(actionData, "fsmEventTargetParams", position));
+            case (ParamType) 42:
+                // FsmEnum: the last part of the enum's type name and the value as a number
+                var fsmEnum = Item(actionData, "fsmEnumParams", position);
+                if (fsmEnum == null) {
+                    return "<missing>";
+                }
+
+                var enumVariable = fsmEnum.Get("name")?.AsString;
+                if (fsmEnum.Get("useVariable")?.AsBool == true && !string.IsNullOrEmpty(enumVariable)) {
+                    return $"var {enumVariable}";
+                }
+
+                var enumName = fsmEnum.Get("enumName")?.AsString ?? "?";
+                return $"{enumName[(enumName.LastIndexOfAny(['.', '+']) + 1)..]}:{fsmEnum.Get("intValue")?.AsInt}";
             case (ParamType) 38:
                 // FsmTemplateControl, as RunFSM holds it: the path ID of its template, which Print turns into a name
                 var templatePathId = Item(actionData, "fsmTemplateControlParams", position)
