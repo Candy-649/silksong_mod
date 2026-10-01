@@ -1553,6 +1553,11 @@ internal static class ActionParams {
             case (ParamType) 37:
                 return Variable(Item(actionData, "fsmVector2Params", position), value =>
                     $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R})");
+            case (ParamType) 25:
+                // FsmColor, as the sprite colour actions use it
+                return Variable(Item(actionData, "fsmColorParams", position), value =>
+                    $"rgba({value.Get("r")?.AsFloat:R}, {value.Get("g")?.AsFloat:R}, {value.Get("b")?.AsFloat:R}, " +
+                    $"{value.Get("a")?.AsFloat:R})");
             case (ParamType) 21:
                 // FunctionCall, as used by SendMessage, is serialized whole in functionCallParams
                 var functionCall = Item(actionData, "functionCallParams", position);
