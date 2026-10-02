@@ -30,8 +30,9 @@ Each shared int also gets a merge hint: "max" when every write adds a positive a
 Usage: py tools/coop_story_flags.py [reports dir] [coop-story-flags.json]
   reads <reports>/playerdata-fields.tsv, playerdata-writes.tsv, playerdata-reads.tsv, playerdata-quest-targets.tsv,
   playerdata-code-writes.tsv and playerdata-code-reads.tsv, and writes <reports>/coop-story-flags.tsv and the JSON
-  (default <reports>/coop-story-flags.json) with only the shared-world fields: {"Bools": [], "Ints": [], "Strings": [], "Enums": []}, where Enums has the
-  fields of all other types
+  (default <reports>/coop-story-flags.json) with only the shared-world fields: {"Bools": [], "Ints": [], "Strings": [], "Enums": [], "Records": []}, where Enums has the
+  fields of all other types and Records has the booleans among Bools that record something done for good, like the
+  win of an arena, which a check keeps if either save has them
 """
 import collections
 import csv
@@ -103,6 +104,26 @@ OVERRIDES = {
     'fleaGames_bouncing_played': ('shared-world', 'a character remembers the game was played'),
     'fleaGames_dodging_played': ('shared-world', 'a character remembers the game was played'),
 }
+# The wins of arenas that save them in the player data (BattleScene.setPDBoolOnEnd and setExtraPDBoolOnEnd). An arena
+# that one player won counts as won for both, as the user decided on 2026-10-02. The arenas that count as bosses keep
+# their records with each player (see coop_world_items.py), and so does slab_cloak_battle_completed, the fight after
+# taking back the prison clothes: dying back into the prison clothes unsets it, and slab_16 only offers the clothes
+# while it is unset, so sharing it could keep a player in the prison clothes for good
+ARENA_WINS = {
+    'ant21_InitBattleCompleted', 'aspid06_battleComplete', 'completedCog10_abyssBattle', 'dust03_battleCompleted',
+    'silkFarmAbyssCoresCleared', 'silkFarmBattle1_complete', 'greymoor_04_battleCompleted',
+    'completedLibraryAcolyteBattle', 'completedLibraryEntryBattle', 'under07_battleCompleted',
+    'ant04_battleCompleted', 'savedPlinney', 'hang04Battle',
+}
+# What the live end of a shared arena sets besides its win, without which a partner who wasn't there loses what the
+# end brings: in ant_04_mid the character who stays as the room's merchant only shows for a save that met her there,
+# and two items of her shop need the second flag
+ARENA_WIN_COMPANIONS = {'mapperMetInAnt04', 'SeenMapperHuntersNest'}
+for _win in ARENA_WINS:
+    OVERRIDES[_win] = ('shared-world', 'arena win, which one player wins for both')
+for _companion in ARENA_WIN_COMPANIONS:
+    OVERRIDES[_companion] = ('shared-world', 'set by the end of an arena whose win is shared, which a partner who '
+                                             'was not there would lose otherwise')
 # The crest chapels: the scene FSM "Chapel Door Control" passes the name to the chapel_door_control template, whose
 # "Do Close" state sets it when this player enters the chapel's memory
 for _crest in ('reaper', 'wanderer', 'beast', 'witch', 'toolmaster', 'shaman'):
@@ -465,6 +486,9 @@ with open(os.path.join(reports, 'coop-story-flags.tsv'), 'w', encoding='utf-8', 
             read.get('categories', ''),
         ])
 
+# Records of something done for good, which a check keeps if either save has them, instead of taking the save that was
+# played longer
+shared['Records'] = [name for name in shared['Bools'] if name in ARENA_WINS | ARENA_WIN_COMPANIONS]
 with open(target, 'w', encoding='utf-8', newline='\n') as out:
     json.dump(shared, out, indent=1, ensure_ascii=False)
     out.write('\n')

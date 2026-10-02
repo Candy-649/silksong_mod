@@ -4,10 +4,12 @@ player keeps, and writes the objects of the world for SSMP.
 Input is the TSV of FsmScan --persistent. Only saved booleans that don't reset at benches can be objects of the world:
 walls, floors, levers, gates, lifts, masks of hidden areas and paid tolls. Each player keeps pickups, money and what
 holds money, upgrades, chests, characters (quest state isn't shared yet) and enemies (they drop money for each player).
-Arenas, objects that give a reward like a journal entry, objects that play a scripted scene and objects that depend on a
-boss stay with each player too, because copying them could take a fight, a scene or a reward from the other player. Some
-objects of the world set booleans of the player data, like a broken wall that the other side checks; those booleans go
-with the object. When in doubt an object stays with each player.
+The win of an arena is shared: an arena that one player won counts as won for both (the user's rule of 2026-10-02),
+except the arenas that count as bosses, which both players fight together. What else lies in an arena, objects that
+give a reward like a journal entry, objects that play a scripted scene and objects that depend on a boss stay with each
+player, because copying them could take a fight, a scene or a reward from the other player. Some objects of the world
+set booleans of the player data, like a broken wall that the other side checks; those booleans go with the object. When
+in doubt an object stays with each player.
 
 Usage: py tools/coop_world_items.py [persistent-items.tsv] [coop-world-items.json] [report.tsv]
 """
@@ -47,6 +49,27 @@ REWARD_ACTIONS = re.compile(
 # Arenas and what belongs to them
 ARENA_COMPONENTS = {'BattleScene'}
 ARENA_NAMES = re.compile(r'battle ?scene', re.I)
+# The scenes whose arena counts as a boss, which waits for both players instead of sharing its win: the ones where a
+# boss shows its title, as the user decided on 2026-10-02 ("按首领算"), and the bosses that are fought in an arena.
+# SSMP's ArenaCoop.BossArenaScenes holds the same list
+BOSS_ARENA_SCENES = {
+    'tut_03', 'room_crowcourt_02', 'shadow_18', 'coral_27', 'dust_chef', 'bone_steel_servant', 'song_04',
+    'weave_03', 'slab_16b',
+}
+# Arenas that play a memory, which is no win of the world
+MEMORY_SCENE = re.compile(r'^memory_', re.I)
+# Arenas whose win stays with each player although they are no boss, by scene and ID: the fight after taking back the
+# prison clothes. The game unsets its win when a player dies back into the prison clothes, and a room that shows it won
+# has no place to take the clothes back, so a win shared into such a save would keep them in the prison clothes for good
+PERSONAL_ARENAS = {('slab_16', 'Battle Cloaked Scene')}
+# Arenas whose win the game doesn't save, by scene, with the name of the arena. SSMP's game leaves a mark of its own in
+# the save when one is won (ArenaCoop.WonMarkPrefix followed by the name), which the partner's save gets like an object
+# of the world, so that a player who comes in later finds the end of the fight played without the fight
+WON_MARK_PREFIX = 'SSMP Won '
+LIVE_ONLY_ARENAS = {
+    'ant_08': 'Battle Scene', 'arborium_11': 'Battle Scene', 'song_07': 'Battle Scene', 'ward_09': 'Battle Scene',
+    'shadow_28': 'Battle Scene',
+}
 # Flags of the player data that scripted scenes set while they play
 SCRIPT_FLAGS = {'disableInventory', 'disablePause', 'disableSaveQuit', 'isInvincible'}
 # Flags of objects that free a character, reopen a story gate or close a challenge: copying them could skip a scene, or
@@ -131,6 +154,11 @@ def classify(row):
     reward_actions = sorted(action for action in actions | split(row['parent_actions']) if REWARD_ACTIONS.match(action))
     if reward_actions:
         return 'reward', 'action ' + reward_actions[0], set()
+    # The saved win of an arena itself, which the arena saves on its own object
+    scene = row['scene'].lower()
+    if (components & ARENA_COMPONENTS and scene not in BOSS_ARENA_SCENES and not MEMORY_SCENE.search(scene) and
+            (scene, row['id']) not in PERSONAL_ARENAS):
+        return 'world', 'arena win', set()
     arena = (components | split(row['parent_components'])) & ARENA_COMPONENTS
     if arena or ARENA_NAMES.search(row['path']):
         return 'arena', min(arena) if arena else 'name', set()
@@ -175,6 +203,9 @@ with open(report, 'w', encoding='utf-8', newline='') as out:
                 reasons[category + ': ' + re.sub(r'\d+', '#', reason)] += 1
         writer.writerow([row['scene'], row['id'], category, reason, ','.join(sorted(names)), row['kind'], row['path'],
                          row['components'], row['fsms']])
+
+for scene, arena in LIVE_ONLY_ARENAS.items():
+    world[scene].add(WON_MARK_PREFIX + arena)
 
 # Objects of a scene with the same ID share one saved boolean, which is only shared if none of them is kept
 conflicts = 0
