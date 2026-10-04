@@ -66,6 +66,7 @@ if (options.TryGetValue("tree", out var treeRoot)) {
 }
 
 if (options.TryGetValue("layout", out var layoutScenes)) {
+    LayoutDumper.PointsPattern = options.TryGetValue("points", out var pointsText) ? new Regex(pointsText) : null;
     LayoutDumper.Run(
         bundleDir, layoutScenes, options.GetValueOrDefault("classes"), options.GetValueOrDefault("region")
     );

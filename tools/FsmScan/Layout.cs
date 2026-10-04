@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Globalization;
 using System.Numerics;
 using AssetsTools.NET;
@@ -27,6 +28,11 @@ internal static class LayoutDumper {
     /// simple serialized values; null for none.</param>
     /// <param name="region">A part of the world as x0,y0,x1,y1: every object with a collider that reaches into it is
     /// printed instead of the room objects, with its layer; null for the room objects.</param>
+    /// <summary>
+    /// With a region, the paths of the objects whose colliders are printed with every point, in the world.
+    /// </summary>
+    public static Regex PointsPattern;
+
     public static void Run(string bundleDir, string scenes, string extraClasses = null, string region = null) {
         var extras = new HashSet<string>(
             (extraClasses ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
@@ -236,6 +242,11 @@ internal static class LayoutDumper {
                 }
 
                 colliders.Add(DescribeCollider(typeId, componentField, gameObject.TransformPathId));
+                if (PointsPattern?.IsMatch(path) == true) {
+                    var worldPoints = GetWorldPoints(typeId, componentField, gameObject.TransformPathId);
+                    colliders.Add("points " + string.Join(" ", worldPoints.Select(point =>
+                        string.Create(CultureInfo.InvariantCulture, $"({point.X:F2},{point.Y:F2})"))));
+                }
             }
 
             if (colliders.Count == 0) {
@@ -298,18 +309,24 @@ internal static class LayoutDumper {
             AssetTypeValueField field,
             long transformPathId
         ) {
-            var points = GetColliderPoints(typeId, field);
-            if (points.Count == 0) {
+            var worldPoints = GetWorldPoints(typeId, field, transformPathId);
+            if (worldPoints.Count == 0) {
                 return null;
             }
 
+            return (worldPoints.Min(p => p.X), worldPoints.Max(p => p.X), worldPoints.Min(p => p.Y),
+                worldPoints.Max(p => p.Y));
+        }
+
+        /// <summary>
+        /// Gets the points that span a collider, in the world.
+        /// </summary>
+        private List<Vector3> GetWorldPoints(AssetClassID typeId, AssetTypeValueField field, long transformPathId) {
             var world = GetWorld(transformPathId);
-            var worldPoints = points
+            return GetColliderPoints(typeId, field)
                 .Select(point =>
                     world.Position + Vector3.Transform(world.Scale * new Vector3(point, 0f), world.Rotation))
                 .ToList();
-            return (worldPoints.Min(p => p.X), worldPoints.Max(p => p.X), worldPoints.Min(p => p.Y),
-                worldPoints.Max(p => p.Y));
         }
 
         /// <summary>
