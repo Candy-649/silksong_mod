@@ -26,6 +26,11 @@ internal static class CopyVariables {
         "SpawnBloodTime", "PreSpawnGameObjects", "PreBuildTK2DSprites", "FireAtTarget",
     };
 
+    // Parameters printed in the detail column: what an event or message is, or which FSM value is set
+    private static readonly HashSet<string> DetailFields = new(StringComparer.Ordinal) {
+        "sendEvent", "eventName", "functionCall", "methodName", "fsmName", "variableName", "activate",
+    };
+
     private static readonly Regex EventTargetVariable = new(@"^<object (?:fsm )?var (.+?)(?: fsm .*| and children)?>$");
 
     private static readonly Regex ApplySignature = new(
@@ -88,6 +93,9 @@ internal static class CopyVariables {
                             param.Field, variable, initial,
                             string.Join("; ", written.Select(w =>
                                 $"{w.Type}@{w.State}{(w.Replicated ? "" : " (host only)")}{(w.Start ? " (start replay)" : "")}")),
+                            string.Join("; ", action.Params
+                                .Where(p => DetailFields.Contains(p.Field) && !string.IsNullOrEmpty(p.Value))
+                                .Select(p => $"{p.Field}={p.Value}")),
                         ]);
                     }
                 }
@@ -96,7 +104,7 @@ internal static class CopyVariables {
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath))!);
         var lines = new List<string> {
-            "verdict\tentity\tscene\tobject\tfsm\tstate\taction\tfield\tvariable\tscene value\twriters",
+            "verdict\tentity\tscene\tobject\tfsm\tstate\taction\tfield\tvariable\tscene value\twriters\tdetail",
         };
         lines.AddRange(rows.Select(row => string.Join("\t", row.Select(cell => cell.Replace('\t', ' ')))));
         File.WriteAllLines(outPath, lines, new UTF8Encoding(false));
@@ -152,6 +160,12 @@ internal static class CopyVariables {
 
         if (initial.StartsWith("<object", StringComparison.Ordinal)) {
             return "given by the scene";
+        }
+
+        // A copy of a creature that is not under another creature is made at the root of the scene, so its parent is
+        // nothing there, whatever the creature's parent is in the scene host's game (Entity: _hasParent)
+        if (written.Any(w => w.Type == "GetParent")) {
+            return "the copy's parent";
         }
 
         if (written.Any(w => w.Replicated)) {
