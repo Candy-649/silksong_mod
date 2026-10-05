@@ -39,6 +39,7 @@ internal static class TreeDumper {
         public int Layer;
         public int Tag;
         public float Z;
+        public string Scale;
         public readonly List<string> Components = new();
         public readonly List<long> Children = new();
         public long Parent;
@@ -98,6 +99,10 @@ internal static class TreeDumper {
                         objectOfTransform[componentInfo.PathId] = info.PathId;
                         fatherOfTransform[componentInfo.PathId] = transform["m_Father"]["m_PathID"].AsLong;
                         node.Z = transform.Get("m_LocalPosition")?["z"].AsFloat ?? 0f;
+                        if (transform.Get("m_LocalScale") is { IsDummy: false } scale &&
+                            (scale["x"].AsFloat != 1f || scale["y"].AsFloat != 1f)) {
+                            node.Scale = $"{scale["x"].AsFloat:0.###},{scale["y"].AsFloat:0.###}";
+                        }
                         continue;
                     }
 
@@ -177,6 +182,15 @@ internal static class TreeDumper {
                     parts.Add("off");
                 }
 
+                if (type is AssetClassID.BoxCollider2D or AssetClassID.CapsuleCollider2D) {
+                    var offset = field.Get("m_Offset");
+                    var size = field.Get("m_Size");
+                    parts.Add(
+                        $"offset {offset["x"].AsFloat:0.###},{offset["y"].AsFloat:0.###} " +
+                        $"size {size["x"].AsFloat:0.###}x{size["y"].AsFloat:0.###}"
+                    );
+                }
+
                 return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
             }
             case AssetClassID.MeshRenderer:
@@ -209,7 +223,8 @@ internal static class TreeDumper {
         var node = nodes[id];
         var off = node.Active ? "" : " [off]";
         Console.WriteLine(
-            $"{new string(' ', depth * 2)}{node.Name}{off} (layer {node.Layer}, z {node.Z:R}): " +
+            $"{new string(' ', depth * 2)}{node.Name}{off} (layer {node.Layer}, z {node.Z:R}" +
+            (node.Scale == null ? "" : $", scale {node.Scale}") + "): " +
             string.Join(", ", node.Components)
         );
         foreach (var child in node.Children) {
