@@ -218,6 +218,11 @@ internal static class TreeDumper {
                     parts.Add($"gravity {gravity.AsFloat:0.###}");
                 }
 
+                // Whether a fast body is stopped where it first touches something, rather than where its step ends
+                if (field.Get("m_CollisionDetection")?.AsInt == 1) {
+                    parts.Add("continuous");
+                }
+
                 return $"{type}({string.Join(",", parts)})";
             }
             case AssetClassID.ParticleSystem: {
