@@ -201,6 +201,25 @@ internal static class TreeDumper {
                 var field = manager.GetBaseField(instance, info);
                 return field.Get("m_Enabled")?.AsBool == false ? $"{type}(off)" : type.ToString();
             }
+            case AssetClassID.Rigidbody2D: {
+                var field = manager.GetBaseField(instance, info);
+                var parts = new List<string> {
+                    (field.Get("m_BodyType")?.AsInt ?? 0) switch {
+                        0 => "dynamic",
+                        1 => "kinematic",
+                        _ => "static"
+                    }
+                };
+                if (field.Get("m_Simulated")?.AsBool == false) {
+                    parts.Add("not simulated");
+                }
+
+                if (field.Get("m_GravityScale") is { IsDummy: false } gravity && gravity.AsFloat != 1f) {
+                    parts.Add($"gravity {gravity.AsFloat:0.###}");
+                }
+
+                return $"{type}({string.Join(",", parts)})";
+            }
             case AssetClassID.ParticleSystem: {
                 var field = manager.GetBaseField(instance, info);
                 var parts = new List<string>();
