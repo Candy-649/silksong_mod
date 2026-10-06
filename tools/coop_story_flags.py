@@ -54,9 +54,21 @@ OVERRIDES = {
     'act2Started': ('shared-world', 'act change'),
     # Scripted time passing, which GameManager.TimePasses reads to move characters; each save keeps its own clock
     'muchTimePassed': ('personal-hero', 'input of TimePasses for this save'),
-    # Countdowns that TimePassesElsewhere lowers each time: shared, they would need a rule other than the larger value
-    'bonetownPilgrimHornedCount': ('unsure', 'countdown that TimePassesElsewhere decrements, a merge cannot take max'),
-    'bonetownPilgrimRoundCount': ('unsure', 'countdown that TimePassesElsewhere decrements, a merge cannot take max'),
+    # How long two pilgrims stay in the town: countdowns that TimePassesElsewhere lowers once the player has seen them,
+    # the pilgrim leaving at 0. Where a character is is shared (USER 2026-09-15 "NPC两边一致"); live the latest change
+    # wins and the check takes the save played longer, never the larger value. Decided 2026-10-06 ("12加吧")
+    'bonetownPilgrimHornedCount': ('shared-world', 'how long a pilgrim stays in the town, a countdown of TimePassesElsewhere'),
+    'bonetownPilgrimRoundCount': ('shared-world', 'how long a pilgrim stays in the town, a countdown of TimePassesElsewhere'),
+    # Clocks that only TimePasses moves, of rewards that grow for this player and are personal (farmer_grub*,
+    # CrawbellCurrency, GrowstoneState): shared, one player's harvest would take the time off the other's clock
+    # without giving them anything. Decided 2026-10-06
+    'grubFarmerTimer': ('personal-reward', 'clock of the grubs a farmer grows for this player (farmer_grub* are personal)'),
+    'CrawbellTimer': ('personal-reward', 'clock of the currency of this player\'s crawbell (CrawbellCurrency is personal)'),
+    'GrowstoneTimer': ('personal-reward', 'clock of this player\'s growstone (GrowstoneState is personal)'),
+    # The ride this player bought (CaravanSpider.OnPurchasedItem): where it goes, which nothing reads back, and which
+    # way its travel scene scrolls (CaravanSpiderTravelDirectionResponder). Decided 2026-10-06
+    'CaravanSpiderTargetScene': ('personal-hero', 'where the ride this player bought goes; nothing reads it'),
+    'CaravanSpiderTravelDirection': ('personal-hero', 'which way the travel scene of the ride this player bought scrolls'),
     # Decided 2026-09-16 from the readers, under rules the user already set: a world purchase, a change of the
     # world and where a character is are shared. None of these were carried by a world object either, so without
     # this they reached the partner through nothing at all
