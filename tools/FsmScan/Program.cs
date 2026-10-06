@@ -1137,7 +1137,14 @@ internal static class ComponentDumper {
                 var looks = owner?.Sorting != null ? $" ({owner.Sorting})" : "";
                 var depth = owner?.LocalPosition != null ? $" (local z {owner.LocalPosition[2]:R})" : "";
                 var scripts = owner != null ? $" [{string.Join(", ", owner.ComponentClasses)}]" : "";
-                Console.WriteLine($"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{tag}{looks}{depth}{scripts}");
+                // Objects with the same name, e.g. the same child under different parents, are told apart by the path
+                var ancestors = context.Ancestors(owner);
+                var under = ancestors.Count > 0
+                    ? $" under {string.Join("/", Enumerable.Reverse(ancestors).Select(a => a.Name))}"
+                    : "";
+                Console.WriteLine(
+                    $"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{tag}{looks}{depth}{scripts}{under}"
+                );
                 Print(context, root, "", fieldRegex, 0);
                 found++;
             }

@@ -189,6 +189,12 @@ internal static class TreeDumper {
                         $"offset {offset["x"].AsFloat:0.###},{offset["y"].AsFloat:0.###} " +
                         $"size {size["x"].AsFloat:0.###}x{size["y"].AsFloat:0.###}"
                     );
+                } else if (type == AssetClassID.CircleCollider2D) {
+                    var offset = field.Get("m_Offset");
+                    parts.Add(
+                        $"offset {offset["x"].AsFloat:0.###},{offset["y"].AsFloat:0.###} " +
+                        $"radius {field.Get("m_Radius")?.AsFloat ?? 0f:0.###}"
+                    );
                 }
 
                 return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
