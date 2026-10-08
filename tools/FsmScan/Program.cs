@@ -346,6 +346,13 @@ internal sealed record StateData(string Name, List<string> Actions, List<string>
     /// </summary>
     [JsonIgnore]
     public List<ActionParamsData> Structured { get; init; } = new();
+
+    /// <summary>
+    /// Whether the state runs its actions one after another, each waiting for the one before it to finish, rather than
+    /// starting them all at once.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsSequence { get; init; }
 }
 
 /// <summary>
@@ -944,7 +951,8 @@ internal static class BundleScanner {
                 strings
             ) {
                 Params = ActionParams.Read(state.Get("actionData")),
-                Structured = ActionParams.ReadStructured(state.Get("actionData"))
+                Structured = ActionParams.ReadStructured(state.Get("actionData")),
+                IsSequence = state.Get("isSequence")?.AsBool ?? false
             });
         }
 
@@ -1484,6 +1492,10 @@ internal static class ActionParams {
     private static void PrintStateList(List<StateData> states) {
         foreach (var state in states) {
             Console.WriteLine($"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}");
+            if (state.IsSequence) {
+                Console.WriteLine("      runs: one action after another");
+            }
+
             if (state.Params.Count > 0) {
                 Console.WriteLine($"      params: {NameTemplates(string.Join("; ", state.Params))}");
             }
