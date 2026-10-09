@@ -505,10 +505,16 @@ internal sealed class FileContext {
             return $"'{GetGameObject(pathId)?.Name}'";
         }
 
-        var owner = GetGameObject(_manager.GetBaseField(_instance, info).Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
+        var root = _manager.GetBaseField(_instance, info);
+        var owner = GetGameObject(root.Get("m_GameObject", "m_PathID")?.AsLong ?? 0);
         var type = info.TypeId == (int) AssetClassID.MonoBehaviour
             ? ScriptClass(info) ?? "?script"
             : ((AssetClassID) info.TypeId).ToString();
+        // An object often carries several FSMs, which only their names tell apart
+        if (type == "PlayMakerFSM" && root.Get("fsm", "name")?.AsString is { } fsmName) {
+            type += $" \"{fsmName}\"";
+        }
+
         return owner != null ? $"'{owner.Name}' {type}" : type;
     }
 
