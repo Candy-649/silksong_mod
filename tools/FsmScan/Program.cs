@@ -37,7 +37,8 @@ using AssetsTools.NET.Extra;
 //            prints instead every object whose collider reaches into that part of the world, with its layer
 //    or: dotnet run -c Release --project tools/FsmScan -- --stableids 1 [--filter ...]  to count the room objects that
 //            SSMP numbers whose depth is set at random as they are switched on, and which would share a number if
-//            the depth were left out of SSMP's stable entity IDs
+//            the depth were left out of SSMP's stable entity IDs, as whole keys and as the 16-bit IDs themselves
+//            (--stableids 2 prints each object's ID with and without the depth too)
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -61,8 +62,8 @@ if (options.TryGetValue("dump", out var dumpClass)) {
     return;
 }
 
-if (options.ContainsKey("stableids")) {
-    StableIdChecker.Run(bundleDir, filter, EntityRegistryData.Load(ssmpDir));
+if (options.TryGetValue("stableids", out var stableIdsMode)) {
+    StableIdChecker.Run(bundleDir, filter, EntityRegistryData.Load(ssmpDir), stableIdsMode == "2");
     return;
 }
 
