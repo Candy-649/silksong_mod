@@ -16,6 +16,7 @@ internal sealed class PersistentRecord {
     public string Kind;
     public string Id;
     public bool IsSemiPersistent;
+    public bool IdSet;
     public string ObjectPath;
     public List<string> Components;
     public string ParentName;
@@ -88,6 +89,7 @@ internal static class PersistentScanner {
                 ParentPathId = parent?.PathId ?? 0,
                 Kind = className,
                 Id = string.IsNullOrEmpty(id) ? gameObject.Name : id,
+                IdSet = !string.IsNullOrEmpty(id),
                 IsSemiPersistent = root.Get("itemData", "IsSemiPersistent")?.AsBool ?? false,
                 ObjectPath = string.Join(
                     "/",
@@ -166,7 +168,7 @@ internal static class PersistentScanner {
         var builder = new StringBuilder();
         builder.AppendLine(
             "scene\tid\tkind\tsemi\tpath\tcomponents\tparent\tparent_components\tfsms\tcategory\tactions\tparent_fsms\t" +
-            "parent_actions\tdata_writes\tparent_data_writes\trecords\tparent_records"
+            "parent_actions\tdata_writes\tparent_data_writes\trecords\tparent_records\tid_set"
         );
         foreach (var record in scan.Persistent.OrderBy(r => r.Scene, StringComparer.Ordinal).ThenBy(r => r.Id, StringComparer.Ordinal)) {
             var fsms = FsmsOf(record, record.GameObjectPathId);
@@ -188,7 +190,8 @@ internal static class PersistentScanner {
                 Clean(DataWrites(fsms)),
                 Clean(DataWrites(parentFsms)),
                 Clean(Records(fsms)),
-                Clean(Records(parentFsms))
+                Clean(Records(parentFsms)),
+                record.IdSet ? "1" : "0"
             ));
         }
 
