@@ -203,9 +203,22 @@ internal static class TreeDumper {
             case AssetClassID.SpriteRenderer:
             case AssetClassID.LineRenderer:
             case AssetClassID.TrailRenderer:
-            case AssetClassID.ParticleSystemRenderer: {
+            case AssetClassID.ParticleSystemRenderer:
+            case AssetClassID.SortingGroup: {
                 var field = manager.GetBaseField(instance, info);
-                return field.Get("m_Enabled")?.AsBool == false ? $"{type}(off)" : type.ToString();
+                var parts = new List<string>();
+                if (field.Get("m_Enabled")?.AsBool == false) {
+                    parts.Add("off");
+                }
+
+                // What it is drawn in front of: the sorting layer's ID and the order within it
+                var sortingLayer = field.Get("m_SortingLayerID")?.AsInt ?? 0;
+                var sortingOrder = field.Get("m_SortingOrder")?.AsInt ?? 0;
+                if (sortingLayer != 0 || sortingOrder != 0) {
+                    parts.Add($"sorting {sortingLayer}:{sortingOrder}");
+                }
+
+                return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
             }
             case AssetClassID.Rigidbody2D: {
                 var field = manager.GetBaseField(instance, info);
