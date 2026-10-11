@@ -9,3 +9,6 @@ obj/
 reports/*.json
 reports/*.tsv
 reports/itemdumps/
+reports/host-sync/*.json
+reports/host-sync/*.tsv
+reports/host-sync/dumps/
