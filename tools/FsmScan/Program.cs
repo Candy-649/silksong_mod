@@ -20,6 +20,8 @@ using AssetsTools.NET.Extra;
 //            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting;
 //            with --fsm, --templates <regex> prints every RunFSM template whose name, strings or parameters match,
 //            and --states 1 prints each matching FSM's own states with their transitions
+//    or: dotnet run -c Release --project tools/FsmScan -- --events <event name regex> [--filter ...]  to print every FSM
+//            that changes state on a matching event, with the states it goes to and their actions, grouped by kind
 //    or: dotnet run -c Release --project tools/FsmScan -- --persistent <out.tsv> [--filter ...]  to list every saved
 //            object in the scenes with the FSMs and FSM actions on it and on its parent
 //    or: dotnet run -c Release --project tools/FsmScan -- --interactions <scenes|all> [--out <interactions.tsv>]
@@ -134,6 +136,11 @@ if (options.TryGetValue("copyvars", out var copyVarsOut)) {
 var scan = BundleScanner.Run(bundleDir, filter, limit, registry);
 if (ActionParams.ActionPattern != null) {
     ActionParams.Print(scan);
+    return;
+}
+
+if (options.TryGetValue("events", out var eventsText)) {
+    EventScan.Print(scan, new Regex(eventsText));
     return;
 }
 
