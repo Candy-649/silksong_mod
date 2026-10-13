@@ -242,6 +242,16 @@ internal static class TreeDumper {
                     parts.Add("continuous");
                 }
 
+                // Whether it is drawn between the steps of physics, rather than where the last step left it
+                switch (field.Get("m_Interpolate")?.AsInt) {
+                    case 1:
+                        parts.Add("interpolate");
+                        break;
+                    case 2:
+                        parts.Add("extrapolate");
+                        break;
+                }
+
                 return $"{type}({string.Join(",", parts)})";
             }
             case AssetClassID.ParticleSystem: {
