@@ -41,6 +41,10 @@ using AssetsTools.NET.Extra;
 //            SSMP numbers whose depth is set at random as they are switched on, and which would share a number if
 //            the depth were left out of SSMP's stable entity IDs, as whole keys and as the 16-bit IDs themselves
 //            (--stableids 2 prints each object's ID with and without the depth too)
+//    or: dotnet run -c Release --project tools/FsmScan -- --hazards <out.tsv> [--filter ...]  to list what can hurt a
+//            player in each room and is decided by the room itself: room FSMs that roll dice for it, run on a clock of
+//            their own or wait for the local player, with where SSMP's code names them; writes a summary next to it,
+//            and --dossier <kind regex> prints the whole FSM of each matching kind
 
 var options = Cli.Parse(args);
 var bundleDir = options.GetValueOrDefault(
@@ -81,6 +85,11 @@ if (options.TryGetValue("layout", out var layoutScenes)) {
     LayoutDumper.Run(
         bundleDir, layoutScenes, options.GetValueOrDefault("classes"), options.GetValueOrDefault("region")
     );
+    return;
+}
+
+if (options.TryGetValue("hazards", out var hazardsOut)) {
+    HazardAudit.Run(bundleDir, filter, ssmpDir, hazardsOut, options.GetValueOrDefault("dossier"));
     return;
 }
 
@@ -423,6 +432,9 @@ internal sealed class FsmRecord {
     // The script classes of the MonoBehaviours on the FSM's object, for --interactions
     public List<string> Components;
 
+    // Whether the FSM component starts switched on; one that starts off runs only once something switches it on
+    public bool Enabled = true;
+
     // The values of the FSM's own variables by "type:name", with --persistent and --rooms, for the parameters that
     // variables fill in. A component that uses a template keeps its own variables.
     public Dictionary<string, string> Variables;
@@ -634,6 +646,12 @@ internal static class BundleScanner {
     /// Called with the MonoBehaviours of every assets file a scan reads, for --pdflags.
     /// </summary>
     public static Action<AssetsManager, AssetsFileInstance, FileContext, List<AssetFileInfo>, BundleRef, string> ComponentCollector;
+
+    /// <summary>
+    /// Called with every assets file a scan reads that has MonoBehaviours, with its FSMs once they are sorted, for
+    /// --hazards. The FSMs that use a template still have the component's own states then.
+    /// </summary>
+    public static Action<AssetsManager, AssetsFileInstance, FileContext, List<FsmRecord>, BundleRef, string> FileCollector;
 
     public static ScanResult Run(string bundleDir, string filter, int limit, EntityRegistryData registry) {
         var result = new ScanResult();
@@ -855,6 +873,7 @@ internal static class BundleScanner {
                     Scene = scene,
                     GameObjectPathId = root["m_GameObject"]["m_PathID"].AsLong,
                     FsmName = fsm.Get("name")?.AsString ?? "?",
+                    Enabled = root.Get("m_Enabled")?.AsBool ?? true,
                     StartState = fsm.Get("startState")?.AsString,
                     States = ReadStates(fsm),
                     GlobalTransitions = ReadTransitions(fsm.Get("globalTransitions", "Array")),
@@ -890,6 +909,8 @@ internal static class BundleScanner {
                 Classify(context, fileRecords, registry, kind);
                 result.Fsms.AddRange(fileRecords);
             }
+
+            FileCollector?.Invoke(manager, instance, context, fileRecords, bundleRef, scene);
         }
     }
 
@@ -930,8 +951,8 @@ internal static class BundleScanner {
         foreach (var variable in objects?.Children ?? []) {
             var name = variable.Get("name")?.AsString;
             if (!string.IsNullOrEmpty(name)) {
-                variables[$"gameobject:{name}"] = variable.Get("value", "m_PathID")?.AsLong is long id and not 0
-                    ? $"<object {id}>"
+                variables[$"gameobject:{name}"] = variable.Get("value") is { } value
+                    ? ActionParams.ObjectReference(value, true)
                     : "null";
             }
         }
@@ -1576,7 +1597,7 @@ internal static class ActionParams {
                 return ownerDefault?.Get("ownerOption")?.AsInt switch {
                     null => "<missing>",
                     0 => "owner",
-                    _ => Variable(ownerDefault.Get("gameObject"), value => $"<object {value.Get("m_PathID")?.AsLong}>"),
+                    _ => Variable(ownerDefault.Get("gameObject"), value => ObjectReference(value, false)),
                 };
             case ParamType.Boolean:
                 return Bytes(actionData, position, 1) is { } flag ? (flag[0] != 0).ToString() : "<missing>";
@@ -1587,8 +1608,7 @@ internal static class ActionParams {
                 return Bytes(actionData, position, 4) is { } number ? BitConverter.ToInt32(number).ToString() : "<missing>";
             case (ParamType) 19:
                 // A direct reference is named by its path ID, so an empty one (SetParent to nothing) reads as null
-                return Variable(Item(actionData, "fsmGameObjectParams", position), value =>
-                    value.Get("m_PathID")?.AsLong is { } id and not 0 ? $"<object {id}>" : "null");
+                return Variable(Item(actionData, "fsmGameObjectParams", position), value => ObjectReference(value, true));
             case (ParamType) 28:
                 return Variable(Item(actionData, "fsmVector3Params", position), value =>
                     $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R}, {value.Get("z")?.AsFloat:R})");
@@ -1663,7 +1683,7 @@ internal static class ActionParams {
             parts.Add(owner?.Get("ownerOption")?.AsInt switch {
                 null => "<missing>",
                 0 => "owner",
-                _ => Variable(owner.Get("gameObject"), value => $"<object {value.Get("m_PathID")?.AsLong}>"),
+                _ => Variable(owner.Get("gameObject"), value => ObjectReference(value, false)),
             });
         }
 
@@ -1816,6 +1836,20 @@ internal static class ActionParams {
     }
 
     private static string Quote(string value) => value == null ? "<missing>" : $"\"{value}\"";
+
+    /// <summary>
+    /// A reference to an object as "&lt;object path ID&gt;", or "&lt;object file ID:path ID&gt;" for an object in
+    /// another file, such as a prefab that an action spawns; an empty one reads as null when emptyAsNull is set.
+    /// </summary>
+    public static string ObjectReference(AssetTypeValueField pointer, bool emptyAsNull) {
+        var pathId = pointer.Get("m_PathID")?.AsLong ?? 0;
+        if (pathId == 0 && emptyAsNull) {
+            return "null";
+        }
+
+        var fileId = pointer.Get("m_FileID")?.AsInt ?? 0;
+        return fileId == 0 ? $"<object {pathId}>" : $"<object {fileId}:{pathId}>";
+    }
 }
 
 internal sealed class ActionUse {
