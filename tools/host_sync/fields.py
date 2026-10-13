@@ -46,7 +46,8 @@ put('playTime completionPercentage openingCreditsPlayed CompletedEndings LastCom
     'BelltownHermitConvoCooldown muchTimePassed StoryEvents mapKeyPref CurrentCrestID PreviousCrestID IsCurrentCrestTemp '
     'LightningToolToggle BelltownHousePlayingInfo LibrarianPlayingInfo',
     'PERSONAL', 'keep client', 'per-player record, preference, loadout or cooldown')
-put('permadeathMode', 'UNSURE', 'refuse', 'game mode of the save; suggested: refuse entry when host and client modes differ, never copy')
+put('permadeathMode', 'UNSURE', 'refuse', 'game mode of the save, never copied; a normal save may follow a Steel Soul '
+    'host and stays normal, a Steel Soul save follows only a Steel Soul host, an ended run (2) follows none')
 
 # ---------- ONLY_ADD upgrades (counts derived per source, see dangers.md)
 put('maxHealthBase maxHealth', 'ONLY_ADD', 'per-source recompute',
