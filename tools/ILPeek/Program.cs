@@ -15,6 +15,8 @@ using System.Reflection.PortableExecutable;
 //   lists methods calling the given APIs and prints IL context around each call
 // Find mode: --find text ...  lists types, fields and methods whose names contain any text (case-insensitive)
 // Strings mode: --strings text ...  lists methods with string literals containing any text (case-insensitive)
+// ILPEEK_ALSO=UnityEngine.CoreModule,... reads those assemblies of the game too, e.g. for Unity's own methods
+//   ("UnityEngine.SceneManagement.SceneManager::Internal_SceneLoaded")
 
 const string Managed = @"D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed";
 // PlayerData writes mode: --pdwrites [writes.tsv] [reads.tsv]  lists C# writes and reads of PlayerData fields
@@ -71,11 +73,14 @@ var heroBySimple = new Dictionary<string, int>();
 var dumpOutput = new List<string>();
 int heroCalls = 0, perFrameDeltaTotal = 0;
 
+var alsoRead = (Environment.GetEnvironmentVariable("ILPEEK_ALSO") ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var files = Directory.GetFiles(Managed, "*.dll")
     .Where(f =>
     {
         var n = Path.GetFileName(f);
-        return n.StartsWith("Assembly-CSharp") || n.StartsWith("PlayMaker") || n.StartsWith("TeamCherry");
+        return n.StartsWith("Assembly-CSharp") || n.StartsWith("PlayMaker") || n.StartsWith("TeamCherry") ||
+               alsoRead.Any(name => Path.GetFileNameWithoutExtension(n) == name);
     })
     .OrderBy(f => f);
 
