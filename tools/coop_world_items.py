@@ -9,9 +9,10 @@ except the arenas that count as bosses, which both players fight together. What 
 give a reward like a journal entry, objects that play a scripted scene and objects that depend on a boss stay with each
 player, because copying them could take a fight, a scene or a reward from the other player. Some objects of the world
 set booleans of the player data, like a broken wall that the other side checks; those booleans go with the object. When
-in doubt an object stays with each player.
+in doubt an object stays with each player. The objects that SSMP plays in the partner's game as mechanisms, from the TSV
+of FsmScan --interactions, are objects of the world whatever they ask with.
 
-Usage: py tools/coop_world_items.py [persistent-items.tsv] [coop-world-items.json] [report.tsv]
+Usage: py tools/coop_world_items.py [persistent-items.tsv] [coop-world-items.json] [report.tsv] [interactions.tsv]
 """
 import collections
 import csv
@@ -22,6 +23,7 @@ import sys
 source = sys.argv[1] if len(sys.argv) > 1 else 'reports/persistent-items.tsv'
 target = sys.argv[2] if len(sys.argv) > 2 else 'SSMP/SSMP/Resource/coop-world-items.json'
 report = sys.argv[3] if len(sys.argv) > 3 else 'reports/coop-world-items.tsv'
+interactions = sys.argv[4] if len(sys.argv) > 4 else 'reports/interactions.tsv'
 
 # Pickups, money and what holds it, and upgrades
 OWN_COMPONENTS = {
@@ -83,6 +85,16 @@ QUEST_ACTION = re.compile(r'Quest')
 ENEMY_COMPONENTS = {'HealthManager'}
 # Paid tolls that open the way are world purchases, which both players share
 WORLD_NAMES = re.compile(r'^(bell_toll_machine|Toll Door)', re.I)
+# The objects that SSMP counts as mechanisms (CoopMechanism; FsmScan --interactions, class "mechanism"), by scene and
+# path: the world changes once a player pays or says yes there, and SSMP plays the change in the partner's game. What
+# such an object saves is the world's as well, for a partner who comes in later or who wasn't there. A lock of the
+# prison asks for a key in a prompt that names an item and is talked to like a character, which kept it with each player
+# (review of ef426ba, 10-15: a lock opened while the partner was elsewhere stayed shut in their save)
+MECHANISMS = {
+    (row['scene'].lower(), row['path'])
+    for row in csv.DictReader(open(interactions, encoding='utf-8'), delimiter='	')
+    if row['class'] == 'mechanism'
+}
 WORLD_COMPONENTS = {'BlackThreadCore'}
 # A write of the player data in the TSV, like "SetPlayerDataBool(boolName=x,value=True)"
 WRITE = re.compile(r'^(\w+)\((.*)\)$')
@@ -140,7 +152,8 @@ def classify(row):
     fsms = split(row['fsms'])
     actions = split(row['actions'])
     toll = WORLD_NAMES.search(row['id'])
-    if not toll:
+    mechanism = (row['scene'].lower(), row['path']) in MECHANISMS
+    if not toll and not mechanism:
         if components & OWN_COMPONENTS:
             return 'kept', 'component ' + min(components & OWN_COMPONENTS), set()
         if fsms & OWN_FSMS:
@@ -166,7 +179,7 @@ def classify(row):
     if records:
         return 'boss', 'record ' + min(records), set()
 
-    if not toll and not components & WORLD_COMPONENTS:
+    if not toll and not mechanism and not components & WORLD_COMPONENTS:
         if 'NPC' in row['id'] or any(NPC_COMPONENT.search(component) for component in components):
             return 'character', 'npc', set()
         quest_actions = sorted(action for action in actions if QUEST_ACTION.search(action))
@@ -178,7 +191,7 @@ def classify(row):
     names, problem = player_data(row)
     if problem:
         return problem[0], problem[1], set()
-    return 'world', 'toll' if toll else '', names
+    return 'world', 'toll' if toll else 'mechanism' if mechanism else '', names
 
 
 rows = list(csv.DictReader(open(source, encoding='utf-8'), delimiter='\t'))
