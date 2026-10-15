@@ -48,8 +48,18 @@ internal static class InteractionAnalyzer {
     /// </summary>
     private static readonly string[] GivePrefixes = [
         "SavedItemGet", "CollectableItemCollect", "AddCurrency", "SpawnPowerUpGetMsg", "SpawnSkillGetMsg",
-        "SetShopItemPurchased", "OpenSimpleShopMenu",
+        "SetShopItemPurchased", "OpenSimpleShopMenu", "SilkRationMachineGetRation",
     ];
+
+    /// <summary>
+    /// Actions that only test, switch or set the FSM's own variables. A state made of them alone changes nothing, so on
+    /// the way from a prompt to the payment, like a lock working out which key the hero has, it belongs to the prompt.
+    /// </summary>
+    private static readonly HashSet<string> SilentActions = new(StringComparer.Ordinal) {
+        "StringSwitch", "IntSwitch", "BoolTest", "BoolAllTrue", "BoolAnyTrue", "BoolNoneTrue", "IntCompare",
+        "FloatCompare", "StringCompare", "PlayerDataBoolTest", "PlayerDataVariableTest", "SetStringValue",
+        "SetObjectValue", "SetBoolValue", "SetIntValue", "SetFloatValue", "BuildString", "NextFrameEvent",
+    };
 
     /// <summary>
     /// Actions that save something.
@@ -267,7 +277,14 @@ internal static class InteractionAnalyzer {
                         if (prompt.Add(to)) {
                             queue.Enqueue(to);
                         }
-                    } else if (!CancelEvents.Contains(eventName)) {
+                    } else if (CancelEvents.Contains(eventName)) {
+                        continue;
+                    } else if (LeadsToPrompt(to, idle, [])) {
+                        // Only works things out on the way to another prompt, which the payment may be in
+                        if (prompt.Add(to)) {
+                            queue.Enqueue(to);
+                        }
+                    } else {
                         starts.Add(to);
                     }
                 }
@@ -302,6 +319,12 @@ internal static class InteractionAnalyzer {
                 return;
             }
 
+            // An item lying in the world that the interaction picks up belongs to each player too
+            if ((record.Components ?? []).Contains("CollectableItemPickup")) {
+                (Class, Reason) = ("give", "CollectableItemPickup");
+                return;
+            }
+
             // Characters belong to conversations and wishes, and benches to the bench rules
             var npcComponent = (record.Components ?? []).FirstOrDefault(c =>
                 c != "PlayMakerNPC" && (c.Contains("NPC", StringComparison.Ordinal) || c.Contains("Npc", StringComparison.Ordinal))
@@ -317,7 +340,12 @@ internal static class InteractionAnalyzer {
                 return;
             }
 
-            if (actions.FirstOrDefault(a => ShortName(a.Name).StartsWith("RunDialogue", StringComparison.Ordinal)) is { } talk) {
+            // A text that the prompt shows before the payment, like what a lock says, belongs to the prompt; talk
+            // after it makes the interaction a conversation
+            var talkStates = starts.Count == 0 ? reachable : Reach(starts, idle).Where(name => !prompt.Contains(name));
+            if (talkStates.SelectMany(name => _states[name].Structured)
+                    .FirstOrDefault(a => ShortName(a.Name).StartsWith("RunDialogue", StringComparison.Ordinal))
+                is { } talk) {
                 (Class, Reason) = ("talk", ShortName(talk.Name));
                 return;
             }
@@ -359,6 +387,28 @@ internal static class InteractionAnalyzer {
         private static bool IsPrompt(StateData state) {
             return state.Structured.Any(a => HasPrefix(a, PromptPrefixes)) ||
                    state.Transitions.Any(t => WaitEvents.Contains(Split(t).Event));
+        }
+
+        /// <summary>
+        /// Whether a state only tests, switches or sets variables, and leads through more such states to a prompt.
+        /// </summary>
+        private bool LeadsToPrompt(string name, HashSet<string> idle, HashSet<string> seen) {
+            if (!seen.Add(name) || !_states.TryGetValue(name, out var state) ||
+                !state.Structured.All(a => SilentActions.Contains(ShortName(a.Name)))) {
+                return false;
+            }
+
+            foreach (var (_, to) in state.Transitions.Select(Split)) {
+                if (to == null || !_states.TryGetValue(to, out var next) || idle.Contains(to)) {
+                    continue;
+                }
+
+                if (IsPrompt(next) || LeadsToPrompt(to, idle, seen)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
