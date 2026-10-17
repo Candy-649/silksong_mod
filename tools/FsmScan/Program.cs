@@ -41,6 +41,8 @@ using AssetsTools.NET.Extra;
 //            SSMP numbers whose depth is set at random as they are switched on, and which would share a number if
 //            the depth were left out of SSMP's stable entity IDs, as whole keys and as the 16-bit IDs themselves
 //            (--stableids 2 prints each object's ID with and without the depth too)
+//    or: dotnet run -c Release --project tools/FsmScan -- --moves <out dir> [--rescan 1]  to list the moves of the
+//            registered creatures that are single deterministic runs once started (see Moves.cs)
 //    or: dotnet run -c Release --project tools/FsmScan -- --hazards <out.tsv> [--filter ...]  to list what can hurt a
 //            player in each room and is decided by the room itself: room FSMs that roll dice for it, run on a clock of
 //            their own or wait for the local player, with where SSMP's code names them; writes a summary next to it,
@@ -65,6 +67,12 @@ if (options.TryGetValue("depth", out var depthText)) {
 
 if (options.TryGetValue("dump", out var dumpClass)) {
     ComponentDumper.Run(bundleDir, filter, dumpClass, options.GetValueOrDefault("fields"), options.GetValueOrDefault("resolve"));
+    return;
+}
+
+// Move survey: --moves <out dir> lists the moves of the registered creatures that run alone once started, see Moves.cs
+if (options.TryGetValue("moves", out var movesDir)) {
+    MoveSurvey.Run(bundleDir, filter, ssmpDir, movesDir, options.GetValueOrDefault("rescan") == "1");
     return;
 }
 
