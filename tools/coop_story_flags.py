@@ -31,8 +31,9 @@ Usage: py tools/coop_story_flags.py [reports dir] [coop-story-flags.json]
   reads <reports>/playerdata-fields.tsv, playerdata-writes.tsv, playerdata-reads.tsv, playerdata-quest-targets.tsv,
   playerdata-code-writes.tsv and playerdata-code-reads.tsv, and writes <reports>/coop-story-flags.tsv and the JSON
   (default <reports>/coop-story-flags.json) with only the shared-world fields: {"Bools": [], "Ints": [], "Strings": [], "Enums": [], "Records": []}, where Enums has the
-  fields of all other types and Records has the booleans among Bools that record something done for good, like the
-  win of an arena, which a check keeps if either save has them
+  fields of all other types and Records has the fields among Bools and Enums that record something done for good,
+  like the win of an arena or a furnishing of the shared house, which a check keeps if either save has them (a boolean
+  that is set, another field that is not 0)
 """
 import collections
 import csv
@@ -115,6 +116,22 @@ OVERRIDES = {
     'fleaGames_juggling_played': ('shared-world', 'a character remembers the game was played'),
     'fleaGames_bouncing_played': ('shared-world', 'a character remembers the game was played'),
     'fleaGames_dodging_played': ('shared-world', 'a character remembers the game was played'),
+    # The house that the players share has one set of furnishings, which one player buys for both, and the other can't
+    # buy again (the user's rule of 2026-10-18, see SSMP's CoopSave.SharedPurchases), and the flags that the time spent
+    # elsewhere sets from them
+    'BelltownFurnishingDesk': ('shared-world', 'furnishing of the shared house, bought once for both'),
+    'BelltownFurnishingFairyLights': ('shared-world', 'furnishing of the shared house, bought once for both'),
+    'BelltownFurnishingGramaphone': ('shared-world', 'furnishing of the shared house, bought once for both'),
+    'BelltownFurnishingSpa': ('shared-world', 'furnishing of the shared house, bought once for both'),
+    'BelltownHouseColour': ('shared-world', 'paint of the shared house, bought once for both'),
+    'BelltownFurnishingSpaAvailable': ('shared-world', 'offered once the shared house has two furnishings '
+                                                       '(GameManager.TimePassesElsewhere)'),
+    'BelltownHousePaintComplete': ('shared-world', 'set once the shared house is painted (TimePassesElsewhere)'),
+}
+# What the shared house has, which nothing takes away again: a check keeps it if either save has it
+HOUSE_RECORDS = {
+    'BelltownFurnishingDesk', 'BelltownFurnishingFairyLights', 'BelltownFurnishingGramaphone', 'BelltownFurnishingSpa',
+    'BelltownHouseColour', 'BelltownFurnishingSpaAvailable', 'BelltownHousePaintComplete',
 }
 # The wins of arenas that save them in the player data (BattleScene.setPDBoolOnEnd and setExtraPDBoolOnEnd). An arena
 # that one player won counts as won for both, as the user decided on 2026-10-02. The arenas that count as bosses keep
@@ -499,8 +516,9 @@ with open(os.path.join(reports, 'coop-story-flags.tsv'), 'w', encoding='utf-8', 
         ])
 
 # Records of something done for good, which a check keeps if either save has them, instead of taking the save that was
-# played longer
-shared['Records'] = [name for name in shared['Bools'] if name in ARENA_WINS | ARENA_WIN_COMPANIONS]
+# played longer: a boolean that is set, or a field of another type that is not 0
+shared['Records'] = [name for name in shared['Bools'] + shared['Enums']
+                     if name in ARENA_WINS | ARENA_WIN_COMPANIONS | HOUSE_RECORDS]
 with open(target, 'w', encoding='utf-8', newline='\n') as out:
     json.dump(shared, out, indent=1, ensure_ascii=False)
     out.write('\n')
