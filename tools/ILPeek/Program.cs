@@ -34,6 +34,20 @@ var listOnlyTargets = new HashSet<string>(callerArgs.Where(a => a.StartsWith('!'
 var callerTargets = new HashSet<string>(callerArgs.Select(a => a.TrimStart('!')));
 var callerHits = new List<string>();
 var callerSnippets = new List<string>();
+// Actions mode: --actions  lists the PlayMaker action types (TSV) with the per-frame and collision methods they have
+//   or inherit, the fields named like everyFrame they have or inherit (name:type), and whether their OnEnter (own or
+//   inherited) calls Finish - which actions keep running after a state is entered
+var actionsMode = args.Length > 0 && args[0] == "--actions";
+var actionMethodNames = new HashSet<string>
+{
+    "OnUpdate", "OnFixedUpdate", "OnLateUpdate", "DoCollisionEnter2D", "DoCollisionStay2D", "DoCollisionExit2D",
+    "DoTriggerEnter2D", "DoTriggerStay2D", "DoTriggerExit2D"
+};
+// By full name: the game has MonoBehaviours with the same simple names as some actions
+var actionBases = new Dictionary<string, string>();
+var actionMethods = new Dictionary<string, List<string>>();
+var actionFields = new Dictionary<string, List<string>>();
+var actionEnterFinishes = new Dictionary<string, bool>();
 var findMode = args.Length > 0 && args[0] == "--find";
 var stringsMode = args.Length > 0 && args[0] == "--strings";
 var searchTerms = findMode || stringsMode ? args.Skip(1).ToList() : new List<string>();
@@ -108,6 +122,47 @@ foreach (var file in files)
             catch { }
         }
         var (outerFull, outerSimple) = OuterType(md, th);
+
+        if (actionsMode)
+        {
+            if (!isTopLevel) continue;
+            try
+            {
+                var (bns, bname) = TypeName(md, td.BaseType);
+                if (bname != null) actionBases.TryAdd(fullName, string.IsNullOrEmpty(bns) ? bname : bns + "." + bname);
+            }
+            catch { }
+            foreach (var mh in td.GetMethods())
+            {
+                var m = md.GetMethodDefinition(mh);
+                var name = md.GetString(m.Name);
+                if (m.RelativeVirtualAddress == 0) continue;
+                if (actionMethodNames.Contains(name))
+                {
+                    if (!actionMethods.TryGetValue(fullName, out var list)) actionMethods[fullName] = list = new();
+                    list.Add(name);
+                }
+                else if (name == "OnEnter")
+                {
+                    try
+                    {
+                        var body = pe.GetMethodBody(m.RelativeVirtualAddress).GetILBytes();
+                        actionEnterFinishes[fullName] = Disassemble(md, body, oneByte, twoByte)
+                            .Any(line => line.Contains("::Finish("));
+                    }
+                    catch { }
+                }
+            }
+            foreach (var fh in td.GetFields())
+            {
+                var fd = md.GetFieldDefinition(fh);
+                var fieldName = md.GetString(fd.Name);
+                if (!fieldName.Contains("everyframe", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!actionFields.TryGetValue(fullName, out var list)) actionFields[fullName] = list = new();
+                list.Add($"{fieldName}:{FieldTypeName(md, fd)}");
+            }
+            continue;
+        }
 
         if (findMode)
         {
@@ -265,6 +320,42 @@ bool IsAction(string simple)
         cur = baseOf.TryGetValue(cur, out var b) ? b : null;
     }
     return false;
+}
+
+if (actionsMode)
+{
+    const string actionRoot = "HutongGames.PlayMaker.FsmStateAction";
+    bool IsActionType(string full)
+    {
+        var seen = new HashSet<string>();
+        for (var cur = full; cur != null && seen.Add(cur); cur = actionBases.TryGetValue(cur, out var b) ? b : null)
+        {
+            if (cur == actionRoot) return true;
+        }
+        return false;
+    }
+    string Simple(string full) => full[(full.LastIndexOf('.') + 1)..];
+    Console.WriteLine("type\tfull_name\tbases\tper_frame\tevery_frame_fields\tenter_finishes");
+    foreach (var type in actionBases.Keys.Where(IsActionType).OrderBy(t => t, StringComparer.Ordinal))
+    {
+        var chain = new List<string>();
+        var methods = new List<string>();
+        var fields = new List<string>();
+        bool? finishes = null;
+        var seen = new HashSet<string>();
+        for (var cur = type; cur != null && cur != actionRoot && seen.Add(cur);
+             cur = actionBases.TryGetValue(cur, out var b) ? b : null)
+        {
+            if (cur != type) chain.Add(Simple(cur));
+            if (actionMethods.TryGetValue(cur, out var own)) methods.AddRange(own.Where(n => !methods.Contains(n)));
+            if (actionFields.TryGetValue(cur, out var flags)) fields.AddRange(flags);
+            if (finishes == null && actionEnterFinishes.TryGetValue(cur, out var f)) finishes = f;
+        }
+        Console.WriteLine(
+            $"{Simple(type)}\t{type}\t{string.Join(">", chain)}\t{string.Join(",", methods)}\t" +
+            $"{string.Join(",", fields)}\t" + (finishes == null ? "-" : finishes.Value ? "yes" : "no"));
+    }
+    return;
 }
 
 if (findMode || stringsMode)
@@ -486,6 +577,24 @@ static string GenericArguments(MetadataReader md, MethodSpecification spec)
     {
         return "T";
     }
+}
+
+static string FieldTypeName(MetadataReader md, FieldDefinition fd)
+{
+    try
+    {
+        var br = md.GetBlobReader(fd.Signature);
+        br.ReadSignatureHeader();
+        var code = br.ReadSignatureTypeCode();
+        return code switch
+        {
+            SignatureTypeCode.Boolean => "bool",
+            SignatureTypeCode.Int32 => "int",
+            SignatureTypeCode.TypeHandle => TypeName(md, br.ReadTypeHandle()).name ?? "?",
+            _ => code.ToString()
+        };
+    }
+    catch { return "?"; }
 }
 
 static (string ns, string name) TypeName(MetadataReader md, EntityHandle h)
