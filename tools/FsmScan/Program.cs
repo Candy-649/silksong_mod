@@ -83,6 +83,7 @@ if (options.TryGetValue("stableids", out var stableIdsMode)) {
 }
 
 if (options.TryGetValue("tree", out var treeRoot)) {
+    TreeDumper.PrintIds = options.ContainsKey("ids");
     TreeDumper.Run(
         bundleDir, filter, treeRoot, options.TryGetValue("tagged", out var taggedText) ? int.Parse(taggedText) : null
     );
@@ -369,6 +370,13 @@ internal sealed record BundleRef(string Path, string Rel, long Size);
 /// of its actions, which include the names of events and FSMs the actions send to.
 /// </summary>
 internal sealed record StateData(string Name, List<string> Actions, List<string> Transitions, List<string> Strings) {
+    /// <summary>
+    /// Where the state's switched-off actions are among all of its actions, which Actions leaves out: an action is
+    /// known in the game by where it is among all of them (FsmState.Actions).
+    /// </summary>
+    [JsonIgnore]
+    public List<int> Off { get; init; } = new();
+
     /// <summary>
     /// Decoded parameters of the enabled actions picked with --params, one "Action: field=value, ..." line each.
     /// </summary>
@@ -926,7 +934,7 @@ internal static class BundleScanner {
     private static string FileNameOrUnknown(FileContext context, int fileId) => context.FileNameOf(fileId) ?? "?";
 
     /// <summary>
-    /// Reads the values of the string, bool, int and float variables of an FSM by "type:name".
+    /// Reads the values of the string, bool, int, float and vector variables of an FSM by "type:name".
     /// </summary>
     private static Dictionary<string, string> ReadVariables(AssetTypeValueField fsm) {
         var variables = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -952,6 +960,21 @@ internal static class BundleScanner {
                     "int" => value.AsInt.ToString(),
                     _ => value.AsFloat.ToString("R"),
                 };
+            }
+        }
+
+        // Vectors by their parts, like a spread that a random vector is drawn from
+        foreach (var (arrayName, type) in new[] { ("vector2Variables", "vector2"), ("vector3Variables", "vector3") }) {
+            foreach (var variable in fsm.Get("variables", arrayName, "Array")?.Children ?? []) {
+                var name = variable.Get("name")?.AsString;
+                var value = variable.Get("value");
+                if (string.IsNullOrEmpty(name) || value == null || value.IsDummy) {
+                    continue;
+                }
+
+                var parts = type == "vector2" ? new[] { "x", "y" } : new[] { "x", "y", "z" };
+                variables[$"{type}:{name}"] =
+                    $"({string.Join(", ", parts.Select(part => (value.Get(part)?.AsFloat ?? 0f).ToString("R")))})";
             }
         }
 
@@ -983,8 +1006,10 @@ internal static class BundleScanner {
             var names = state.Get("actionData", "actionNames", "Array");
             var enabled = state.Get("actionData", "actionEnabled", "Array");
             var actions = new List<string>();
+            var off = new List<int>();
             for (var i = 0; names != null && i < names.Children.Count; i++) {
                 if (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool) {
+                    off.Add(i);
                     continue;
                 }
 
@@ -1004,7 +1029,8 @@ internal static class BundleScanner {
             ) {
                 Params = ActionParams.Read(state.Get("actionData")),
                 Structured = ActionParams.ReadStructured(state.Get("actionData")),
-                IsSequence = state.Get("isSequence")?.AsBool ?? false
+                IsSequence = state.Get("isSequence")?.AsBool ?? false,
+                Off = off
             });
         }
 
@@ -1543,7 +1569,10 @@ internal static class ActionParams {
 
     private static void PrintStateList(List<StateData> states) {
         foreach (var state in states) {
-            Console.WriteLine($"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}");
+            Console.WriteLine(
+                $"  [{state.Name}] {string.Join(",", state.Actions.Select(ShortName))}" +
+                (state.Off.Count == 0 ? "" : $" (switched off at {string.Join(", ", state.Off)})")
+            );
             if (state.IsSequence) {
                 Console.WriteLine("      runs: one action after another");
             }
@@ -1719,8 +1748,9 @@ internal static class ActionParams {
         }
 
         var name = variable.Get("name")?.AsString;
-        if (variable.Get("useVariable")?.AsBool == true && !string.IsNullOrEmpty(name)) {
-            return $"var {name}";
+        if (variable.Get("useVariable")?.AsBool == true) {
+            // PlayMaker's None: set to a variable without naming one, which actions read as "not given"
+            return string.IsNullOrEmpty(name) ? "None" : $"var {name}";
         }
 
         var value = variable.Get("value");

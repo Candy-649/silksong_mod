@@ -8,7 +8,8 @@ using AssetsTools.NET.Extra;
 
 /// <summary>
 /// Prints the objects of a prefab or scene as a tree for --tree: each object with whether it starts switched off, its
-/// physics layer and depth, and every component on it (built-in ones by class, scripts by script class), with whether
+/// physics layer and depth, where it is in its parent and how it is turned there if not at the parent's place, and
+/// every component on it (built-in ones by class, scripts by script class), with whether
 /// colliders are triggers, which renderers start switched off and whether particle systems play by themselves, and
 /// the size of the sprite that each sprite renderer draws. Used to see what a character is made of, such as which parts
 /// of the hero only show while it does something, and how large a thing is drawn, such as a bench.
@@ -18,6 +19,12 @@ internal static class TreeDumper {
     /// The folder of the bundles, which the bundles of sprites are found in (<see cref="SpriteSizes"/>).
     /// </summary>
     private static string _bundleDir;
+
+    /// <summary>
+    /// Whether each object is printed with its path ID, for --ids, by which an action names an object of its own
+    /// prefab or scene, like the points a spawn is made at.
+    /// </summary>
+    public static bool PrintIds;
 
     public static void Run(string bundleDir, string filter, string rootPattern, int? tag = null) {
         _bundleDir = bundleDir;
@@ -47,6 +54,8 @@ internal static class TreeDumper {
         public int Tag;
         public float Z;
         public string Scale;
+        public string Place;
+        public string Turn;
         public readonly List<string> Components = new();
         public readonly List<long> Children = new();
         public long Parent;
@@ -106,6 +115,17 @@ internal static class TreeDumper {
                         objectOfTransform[componentInfo.PathId] = info.PathId;
                         fatherOfTransform[componentInfo.PathId] = transform["m_Father"]["m_PathID"].AsLong;
                         node.Z = transform.Get("m_LocalPosition")?["z"].AsFloat ?? 0f;
+                        if (transform.Get("m_LocalPosition") is { IsDummy: false } place &&
+                            (place["x"].AsFloat != 0f || place["y"].AsFloat != 0f)) {
+                            node.Place = $"{place["x"].AsFloat:0.###},{place["y"].AsFloat:0.###}";
+                        }
+
+                        if (transform.Get("m_LocalRotation") is { IsDummy: false } turn && turn["z"].AsFloat != 0f) {
+                            // The turn about the depth axis of a turn that is only about it
+                            var angle = 2 * Math.Atan2(turn["z"].AsFloat, turn["w"].AsFloat) * 180 / Math.PI;
+                            node.Turn = $"{angle:0.##}";
+                        }
+
                         if (transform.Get("m_LocalScale") is { IsDummy: false } scale &&
                             (scale["x"].AsFloat != 1f || scale["y"].AsFloat != 1f)) {
                             node.Scale = $"{scale["x"].AsFloat:0.###},{scale["y"].AsFloat:0.###}";
@@ -385,7 +405,9 @@ internal static class TreeDumper {
         var node = nodes[id];
         var off = node.Active ? "" : " [off]";
         Console.WriteLine(
-            $"{new string(' ', depth * 2)}{node.Name}{off} (layer {node.Layer}, z {node.Z:R}" +
+            $"{new string(' ', depth * 2)}{node.Name}{off} (" + (PrintIds ? $"id {id}, " : "") +
+            $"layer {node.Layer}, z {node.Z:R}" +
+            (node.Place == null ? "" : $", at {node.Place}") + (node.Turn == null ? "" : $", turned {node.Turn}") +
             (node.Scale == null ? "" : $", scale {node.Scale}") + "): " +
             string.Join(", ", node.Components)
         );
