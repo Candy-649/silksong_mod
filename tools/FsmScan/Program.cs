@@ -30,7 +30,8 @@ using AssetsTools.NET.Extra;
 //            serialized component field that writes or reads a PlayerData field, as playerdata-writes.tsv and
 //            playerdata-reads.tsv
 //    or: dotnet run -c Release --project tools/FsmScan -- --tree <root object name regex> [--filter ...]  to print the
-//            objects under each matching root as a tree, with every component on them
+//            objects under each matching root as a tree, with every component on them and the size of the sprite
+//            that each sprite renderer draws, read from the bundle of its sprite atlas
 //            ([--tagged <tag number>] prints instead every object with that tag, with its path and what is under it;
 //            custom tags are 20000 + their index in the TagManager of globalgamemanagers)
 //    or: dotnet run -c Release --project tools/FsmScan -- --layout <scene,scene> [--classes <class,class>]  to print

@@ -9,11 +9,18 @@ using AssetsTools.NET.Extra;
 /// <summary>
 /// Prints the objects of a prefab or scene as a tree for --tree: each object with whether it starts switched off, its
 /// physics layer and depth, and every component on it (built-in ones by class, scripts by script class), with whether
-/// colliders are triggers, which renderers start switched off and whether particle systems play by themselves. Used to
-/// see what a character is made of, such as which parts of the hero only show while it does something.
+/// colliders are triggers, which renderers start switched off and whether particle systems play by themselves, and
+/// the size of the sprite that each sprite renderer draws. Used to see what a character is made of, such as which parts
+/// of the hero only show while it does something, and how large a thing is drawn, such as a bench.
 /// </summary>
 internal static class TreeDumper {
+    /// <summary>
+    /// The folder of the bundles, which the bundles of sprites are found in (<see cref="SpriteSizes"/>).
+    /// </summary>
+    private static string _bundleDir;
+
     public static void Run(string bundleDir, string filter, string rootPattern, int? tag = null) {
+        _bundleDir = bundleDir;
         var rootRegex = new Regex(rootPattern ?? ".", RegexOptions.IgnoreCase);
         var manager = new AssetsManager();
         var scriptNames = BundleScanner.LoadScriptNames(manager, bundleDir);
@@ -218,6 +225,18 @@ internal static class TreeDumper {
                     parts.Add($"sorting {sortingLayer}:{sortingOrder}");
                 }
 
+                // How large the sprite is drawn, in units before the scale of the object and its parents: the size
+                // of the sprite itself, or the size set on the renderer when the sprite is stretched or tiled to it
+                if (type == AssetClassID.SpriteRenderer) {
+                    if (field.Get("m_Sprite") is { } sprite) {
+                        parts.Add(SpriteSizes.Describe(manager, instance, context, sprite));
+                    }
+
+                    if ((field.Get("m_DrawMode")?.AsInt ?? 0) != 0 && field.Get("m_Size") is { } size) {
+                        parts.Add($"drawn {size["x"].AsFloat:0.##}x{size["y"].AsFloat:0.##}");
+                    }
+                }
+
                 return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
             }
             case AssetClassID.Rigidbody2D: {
@@ -269,6 +288,96 @@ internal static class TreeDumper {
             }
             default:
                 return type.ToString();
+        }
+    }
+
+    /// <summary>
+    /// The size of the sprites that sprite renderers draw, in units. A scene keeps only a reference to each sprite: the
+    /// assets file that holds it, which is in the bundle of its sprite atlas, and its path ID. The bundles are searched
+    /// for their assets files once, and each assets file of sprites is loaded once, with a manager of its own that the
+    /// unloading of each scene's bundle leaves alone.
+    /// </summary>
+    private static class SpriteSizes {
+        private static readonly AssetsManager Manager = new();
+        private static readonly Dictionary<string, AssetsFileInstance> Files = new(StringComparer.Ordinal);
+        private static Dictionary<string, string> _bundleOfFile;
+
+        public static string Describe(
+            AssetsManager sceneManager,
+            AssetsFileInstance instance,
+            FileContext context,
+            AssetTypeValueField pointer
+        ) {
+            var pathId = pointer["m_PathID"].AsLong;
+            if (pathId == 0) {
+                return "no sprite";
+            }
+
+            var fileId = pointer["m_FileID"].AsInt;
+            try {
+                var file = fileId == 0 ? instance : FindFile(context.FileNameOf(fileId));
+                var info = file?.file.GetAssetInfo(pathId);
+                if (info == null) {
+                    return "sprite not found";
+                }
+
+                var sprite = (fileId == 0 ? sceneManager : Manager).GetBaseField(file, info);
+                var rect = sprite["m_Rect"];
+                var unitsPerPixel = 1f / sprite["m_PixelsToUnits"].AsFloat;
+                var width = rect["width"].AsFloat * unitsPerPixel;
+                var height = rect["height"].AsFloat * unitsPerPixel;
+                return $"sprite {width:0.##}x{height:0.##}";
+            } catch (Exception e) {
+                return $"sprite unreadable ({e.GetType().Name})";
+            }
+        }
+
+        private static AssetsFileInstance FindFile(string name) {
+            if (name == null) {
+                return null;
+            }
+
+            if (Files.TryGetValue(name, out var known)) {
+                return known;
+            }
+
+            _bundleOfFile ??= MapBundles();
+            AssetsFileInstance found = null;
+            if (_bundleOfFile.TryGetValue(name, out var path)) {
+                var bundle = Manager.LoadBundleFile(path, true);
+                var infos = bundle.file.BlockAndDirInfo.DirectoryInfos;
+                for (var i = 0; i < infos.Count; i++) {
+                    if (infos[i].Name == name) {
+                        found = Manager.LoadAssetsFileFromBundle(bundle, i, false);
+                        found.file.GenerateQuickLookup();
+                        break;
+                    }
+                }
+            }
+
+            Files[name] = found;
+            return found;
+        }
+
+        /// <summary>
+        /// The bundle that holds each assets file, by the file's name, as the references of scenes name them.
+        /// </summary>
+        private static Dictionary<string, string> MapBundles() {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var path in Directory.GetFiles(_bundleDir, "*.bundle", SearchOption.AllDirectories)) {
+                try {
+                    var bundle = Manager.LoadBundleFile(path, false);
+                    foreach (var directory in bundle.file.BlockAndDirInfo.DirectoryInfos) {
+                        map.TryAdd(directory.Name, path);
+                    }
+
+                    Manager.UnloadBundleFile(bundle);
+                } catch (Exception e) {
+                    Console.Error.WriteLine($"Could not list the files of {Path.GetFileName(path)}: {e.Message}");
+                }
+            }
+
+            return map;
         }
     }
 
