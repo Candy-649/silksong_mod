@@ -346,10 +346,88 @@ internal static class TreeDumper {
                 var unitsPerPixel = 1f / sprite["m_PixelsToUnits"].AsFloat;
                 var width = rect["width"].AsFloat * unitsPerPixel;
                 var height = rect["height"].AsFloat * unitsPerPixel;
-                return $"sprite {width:0.##}x{height:0.##}";
+                var manager = fileId == 0 ? sceneManager : Manager;
+                var texture = TextureName(file, sprite["m_RD"]?["texture"], manager) ??
+                              AtlasTextureName(file, sprite, manager);
+                return $"sprite {width:0.##}x{height:0.##}" + (texture == null ? "" : $" in {texture}");
             } catch (Exception e) {
                 return $"sprite unreadable ({e.GetType().Name})";
             }
+        }
+
+        /// <summary>
+        /// The name of the texture that a sprite is drawn from, which for a sprite packed into a sprite atlas is the
+        /// atlas's texture ("sactx-..."), the name that a skin's image for it is named after; or null if unreadable.
+        /// </summary>
+        private static string TextureName(AssetsFileInstance file, AssetTypeValueField pointer, AssetsManager manager) {
+            if (pointer == null || pointer.IsDummy) {
+                return null;
+            }
+
+            try {
+                var pathId = pointer["m_PathID"].AsLong;
+                var fileId = pointer["m_FileID"].AsInt;
+                if (pathId == 0) {
+                    return null;
+                }
+
+                AssetsFileInstance target = file;
+                if (fileId != 0) {
+                    var externals = file.file.Metadata.Externals;
+                    if (fileId - 1 >= externals.Count) {
+                        return null;
+                    }
+
+                    var pathName = externals[fileId - 1].PathName;
+                    target = FindFile(pathName[(pathName.LastIndexOf('/') + 1)..]);
+                    manager = Manager;
+                }
+
+                var info = target?.file.GetAssetInfo(pathId);
+                return info == null ? null : manager.GetBaseField(target, info)["m_Name"].AsString;
+            } catch (Exception) {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The name of the texture of the sprite atlas that a packed sprite is drawn from: the atlas keeps it, under
+        /// the key of the sprite's render data, as the sprite itself names none.
+        /// </summary>
+        private static string AtlasTextureName(
+            AssetsFileInstance file,
+            AssetTypeValueField sprite,
+            AssetsManager manager
+        ) {
+            try {
+                var atlasPointer = sprite["m_SpriteAtlas"];
+                var key = sprite["m_RenderDataKey"];
+                if (atlasPointer == null || atlasPointer.IsDummy || key == null || key.IsDummy ||
+                    atlasPointer["m_FileID"].AsInt != 0 || atlasPointer["m_PathID"].AsLong == 0) {
+                    return null;
+                }
+
+                var info = file.file.GetAssetInfo(atlasPointer["m_PathID"].AsLong);
+                var atlas = info == null ? null : manager.GetBaseField(file, info);
+                var map = atlas?["m_RenderDataMap"]?["Array"];
+                if (map == null || map.IsDummy) {
+                    return null;
+                }
+
+                var wantedGuid = string.Join(",", key["first"].Children.Select(c => c.AsUInt));
+                var wantedId = key["second"].AsLong;
+                foreach (var pair in map.Children) {
+                    var first = pair["first"];
+                    if (string.Join(",", first["first"].Children.Select(c => c.AsUInt)) == wantedGuid &&
+                        first["second"].AsLong == wantedId) {
+                        return TextureName(file, pair["second"]["texture"], manager);
+                    }
+                }
+            } catch (Exception) {
+                // Unreadable: the size is still printed
+            }
+
+            return null;
         }
 
         private static AssetsFileInstance FindFile(string name) {

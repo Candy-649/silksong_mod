@@ -31,7 +31,8 @@ using AssetsTools.NET.Extra;
 //            playerdata-reads.tsv
 //    or: dotnet run -c Release --project tools/FsmScan -- --tree <root object name regex> [--filter ...]  to print the
 //            objects under each matching root as a tree, with every component on them and the size of the sprite
-//            that each sprite renderer draws, read from the bundle of its sprite atlas
+//            that each sprite renderer draws, read from the bundle of its sprite atlas, with the texture it is drawn
+//            from (for a packed sprite the atlas's "sactx-..." texture, which skins name their images after)
 //            ([--tagged <tag number>] prints instead every object with that tag, with its path and what is under it;
 //            custom tags are 20000 + their index in the TagManager of globalgamemanagers)
 //    or: dotnet run -c Release --project tools/FsmScan -- --layout <scene,scene> [--classes <class,class>]  to print
