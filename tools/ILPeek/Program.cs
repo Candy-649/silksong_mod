@@ -17,6 +17,7 @@ using System.Reflection.PortableExecutable;
 // Strings mode: --strings text ...  lists methods with string literals containing any text (case-insensitive)
 // ILPEEK_ALSO=UnityEngine.CoreModule,... reads those assemblies of the game too, e.g. for Unity's own methods
 //   ("UnityEngine.SceneManagement.SceneManager::Internal_SceneLoaded")
+// ILPEEK_FILES=path;path reads only those assemblies instead, e.g. the plugin of another mod
 
 const string Managed = @"D:\STEAM\steamapps\common\Hollow Knight Silksong\Hollow Knight Silksong_Data\Managed";
 // PlayerData writes mode: --pdwrites [writes.tsv] [reads.tsv]  lists C# writes and reads of PlayerData fields
@@ -89,14 +90,18 @@ int heroCalls = 0, perFrameDeltaTotal = 0;
 
 var alsoRead = (Environment.GetEnvironmentVariable("ILPEEK_ALSO") ?? "")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-var files = Directory.GetFiles(Managed, "*.dll")
-    .Where(f =>
-    {
-        var n = Path.GetFileName(f);
-        return n.StartsWith("Assembly-CSharp") || n.StartsWith("PlayMaker") || n.StartsWith("TeamCherry") ||
-               alsoRead.Any(name => Path.GetFileNameWithoutExtension(n) == name);
-    })
-    .OrderBy(f => f);
+var onlyFiles = (Environment.GetEnvironmentVariable("ILPEEK_FILES") ?? "")
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var files = onlyFiles.Length > 0
+    ? onlyFiles.OrderBy(f => f)
+    : Directory.GetFiles(Managed, "*.dll")
+        .Where(f =>
+        {
+            var n = Path.GetFileName(f);
+            return n.StartsWith("Assembly-CSharp") || n.StartsWith("PlayMaker") || n.StartsWith("TeamCherry") ||
+                   alsoRead.Any(name => Path.GetFileNameWithoutExtension(n) == name);
+        })
+        .OrderBy(f => f);
 
 foreach (var file in files)
 {
