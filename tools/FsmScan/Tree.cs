@@ -83,6 +83,9 @@ internal static class TreeDumper {
             var nodes = new Dictionary<long, Node>();
             var objectOfTransform = new Dictionary<long, long>();
             var fatherOfTransform = new Dictionary<long, long>();
+            // Where each transform stands among the children of its parent: the order the game goes through them in,
+            // as GetComponentsInChildren does, and so the order they are printed in
+            var placeAmongSiblings = new Dictionary<long, int>();
             foreach (var info in instance.file.GetAssetsOfType(AssetClassID.GameObject)) {
                 var field = manager.GetBaseField(instance, info);
                 var node = new Node {
@@ -114,6 +117,13 @@ internal static class TreeDumper {
                         var transform = manager.GetBaseField(instance, componentInfo);
                         objectOfTransform[componentInfo.PathId] = info.PathId;
                         fatherOfTransform[componentInfo.PathId] = transform["m_Father"]["m_PathID"].AsLong;
+                        if (transform.Get("m_Children", "Array") is { } children) {
+                            var index = 0;
+                            foreach (var child in children.Children) {
+                                placeAmongSiblings[child["m_PathID"].AsLong] = index++;
+                            }
+                        }
+
                         node.Z = transform.Get("m_LocalPosition")?["z"].AsFloat ?? 0f;
                         if (transform.Get("m_LocalPosition") is { IsDummy: false } place &&
                             (place["x"].AsFloat != 0f || place["y"].AsFloat != 0f)) {
@@ -137,7 +147,9 @@ internal static class TreeDumper {
                 }
             }
 
-            foreach (var (transformId, objectId) in objectOfTransform) {
+            foreach (var (transformId, objectId) in objectOfTransform.OrderBy(
+                         pair => placeAmongSiblings.GetValueOrDefault(pair.Key, int.MaxValue)
+                     )) {
                 var fatherId = fatherOfTransform[transformId];
                 if (fatherId != 0 && objectOfTransform.TryGetValue(fatherId, out var parentId)) {
                     nodes[objectId].Parent = parentId;
