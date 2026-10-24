@@ -15,7 +15,8 @@ using AssetsTools.NET.Extra;
 //            [--out <report.md>] [--filter <bundle path substring>] [--limit <bundle count>]
 //    or: dotnet run -c Release --project tools/FsmScan -- --dump <script class> [--filter <bundle path substring>]
 //            [--fields <regex>] [--resolve <bundle path substring>]  to print the serialized fields of every MonoBehaviour
-//            with that script class, with references to MonoBehaviours in the --resolve bundles printed by name
+//            with that script class, with references to MonoBehaviours in the --resolve bundles printed by name;
+//            --ids 1 prints each with its assets file and path ID, and each assets file with what its file IDs stand for
 //    or: dotnet run -c Release --project tools/FsmScan -- --params <action type regex> [--fields <regex>]
 //            [--filter ...]  to count the parameter values of those FSM actions per FSM category instead of reporting;
 //            with --fsm, --templates <regex> prints every RunFSM template whose name, strings or parameters match,
@@ -68,6 +69,7 @@ if (options.TryGetValue("depth", out var depthText)) {
 }
 
 if (options.TryGetValue("dump", out var dumpClass)) {
+    ComponentDumper.PrintIds = options.ContainsKey("ids");
     ComponentDumper.Run(bundleDir, filter, dumpClass, options.GetValueOrDefault("fields"), options.GetValueOrDefault("resolve"));
     return;
 }
@@ -1147,6 +1149,12 @@ internal static class ComponentDumper {
     public static int MaxArrayItems = 8;
 
     /// <summary>
+    /// Whether each component is printed with its assets file and path ID, and each assets file with the files that
+    /// its references' file IDs stand for (--ids), so that a reference printed as m_FileID and m_PathID can be told.
+    /// </summary>
+    public static bool PrintIds;
+
+    /// <summary>
     /// Whether a dump is running, which has the owners of the components read with their renderer and position.
     /// </summary>
     public static bool Running;
@@ -1211,9 +1219,19 @@ internal static class ComponentDumper {
                 context.MonoClasses[info.PathId] = context.ScriptClass(info);
             }
 
+            var externalsSaid = false;
             foreach (var info in monoBehaviours) {
                 if (context.ScriptClass(info) != className) {
                     continue;
+                }
+
+                if (PrintIds && !externalsSaid) {
+                    externalsSaid = true;
+                    var externals = instance.file.Metadata.Externals;
+                    Console.WriteLine(
+                        $"-- assets file {instance.name}, file IDs: " +
+                        string.Join(", ", externals.Select((external, index) => $"{index + 1}={external.PathName}"))
+                    );
                 }
 
                 var root = manager.GetBaseField(instance, info);
@@ -1229,8 +1247,9 @@ internal static class ComponentDumper {
                 var under = ancestors.Count > 0
                     ? $" under {string.Join("/", Enumerable.Reverse(ancestors).Select(a => a.Name))}"
                     : "";
+                var ids = PrintIds ? $" (file {instance.name}, id {info.PathId})" : "";
                 Console.WriteLine(
-                    $"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{tag}{looks}{depth}{scripts}{under}"
+                    $"== {Path.GetRelativePath(bundleDir, path)} : {name}{layer}{tag}{looks}{depth}{scripts}{under}{ids}"
                 );
                 Print(context, root, "", fieldRegex, 0);
                 found++;
