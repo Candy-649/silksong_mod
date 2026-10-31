@@ -1667,6 +1667,10 @@ internal static class ActionParams {
             case (ParamType) 19:
                 // A direct reference is named by its path ID, so an empty one (SetParent to nothing) reads as null
                 return Variable(Item(actionData, "fsmGameObjectParams", position), value => ObjectReference(value, true));
+            case (ParamType) 24:
+                // FsmObject, like the quest of BeginQuest: its file ID and path ID, which --dump with --ids lets be
+                // followed to the asset
+                return Variable(Item(actionData, "fsmObjectParams", position), value => ObjectReference(value, true));
             case (ParamType) 28:
                 return Variable(Item(actionData, "fsmVector3Params", position), value =>
                     $"({value.Get("x")?.AsFloat:R}, {value.Get("y")?.AsFloat:R}, {value.Get("z")?.AsFloat:R})");
