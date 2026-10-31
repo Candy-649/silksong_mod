@@ -10,9 +10,11 @@ using AssetsTools.NET.Extra;
 /// Prints the objects of a prefab or scene as a tree for --tree: each object with whether it starts switched off, its
 /// physics layer and depth, where it is in its parent and how it is turned there if not at the parent's place, and
 /// every component on it (built-in ones by class, scripts by script class), with whether
-/// colliders are triggers, which renderers start switched off and whether particle systems play by themselves, and
-/// the size of the sprite that each sprite renderer draws. Used to see what a character is made of, such as which parts
-/// of the hero only show while it does something, and how large a thing is drawn, such as a bench.
+/// colliders are triggers, which renderers start switched off and whether particle systems play by themselves, the
+/// size of the sprite that each sprite renderer draws, what every other renderer draws with and the frames of the
+/// texture sheet of a particle system. Used to see what a character is made of, such as which parts of the hero only
+/// show while it does something, how large a thing is drawn, such as a bench, and which image of a skin a part of it is
+/// drawn from.
 /// </summary>
 internal static class TreeDumper {
     /// <summary>
@@ -267,6 +269,19 @@ internal static class TreeDumper {
                     if ((field.Get("m_DrawMode")?.AsInt ?? 0) != 0 && field.Get("m_Size") is { } size) {
                         parts.Add($"drawn {size["x"].AsFloat:0.##}x{size["y"].AsFloat:0.##}");
                     }
+                } else if (field.Get("m_Materials", "Array") is { } materials) {
+                    // A particle drawn stretched along the way it goes, longer the faster it goes
+                    if (type == AssetClassID.ParticleSystemRenderer && field.Get("m_RenderMode")?.AsInt == 1) {
+                        parts.Add(
+                            $"stretched (speed {field.Get("m_VelocityScale")?.AsFloat ?? 0f:0.##}, " +
+                            $"length {field.Get("m_LengthScale")?.AsFloat ?? 0f:0.##})"
+                        );
+                    }
+
+                    // What it draws with as the prefab or scene keeps it, before the game changes it: a sprite of
+                    // tk2d takes the material of its sheet as it starts, and a particle system draws its particles
+                    // with the first and its trails with the second
+                    parts.Add(SpriteSizes.Materials(manager, instance, context, materials));
                 }
 
                 return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
@@ -314,6 +329,51 @@ internal static class TreeDumper {
 
                 if (field.Get("looping")?.AsBool == true) {
                     parts.Add("loops");
+                }
+
+                // Where the particles stay as the system moves: with it, or where they came out in the world
+                if (field.Get("moveWithTransform")?.AsInt == 1) {
+                    parts.Add("world");
+                }
+
+                // How many come out: a number each second, and a number for each unit the system moves, which a jump
+                // of the system lays out all along the way it jumped
+                var overTime = field.Get("EmissionModule", "rateOverTime", "scalar")?.AsFloat ?? 0f;
+                var overDistance = field.Get("EmissionModule", "rateOverDistance", "scalar")?.AsFloat ?? 0f;
+                if (field.Get("EmissionModule", "enabled")?.AsBool == true) {
+                    if (overTime > 0f) {
+                        parts.Add($"{overTime:0.##} a second");
+                    }
+
+                    if (overDistance > 0f) {
+                        // How far it moved: by where it is, so a jump counts as a way it went, by the speed of its
+                        // body, or by a speed set on it
+                        parts.Add($"{overDistance:0.##} a unit moved" + (field.Get("emitterVelocityMode")?.AsInt switch {
+                            0 => " by place",
+                            1 => " by body",
+                            2 => " by a speed set",
+                            _ => ""
+                        }));
+                    }
+                }
+
+                // A texture sheet takes the frames of the particles from a grid over the material's texture, or from
+                // sprites, which are drawn from the texture of their own atlas instead
+                if (field.Get("UVModule") is { } sheet && sheet.Get("enabled")?.AsBool == true) {
+                    if (sheet.Get("mode")?.AsInt == 1 && sheet.Get("sprites", "Array") is { } sprites) {
+                        parts.Add(
+                            $"sheet of {sprites.Children.Count} sprite(s)" + (sprites.Children.Count == 0
+                                ? ""
+                                : ", the first " + SpriteSizes.Describe(
+                                    manager,
+                                    instance,
+                                    context,
+                                    sprites.Children[0]["sprite"]
+                                ))
+                        );
+                    } else {
+                        parts.Add($"sheet {sheet.Get("tilesX")?.AsInt ?? 1}x{sheet.Get("tilesY")?.AsInt ?? 1}");
+                    }
                 }
 
                 return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
@@ -364,6 +424,95 @@ internal static class TreeDumper {
                 return $"sprite {width:0.##}x{height:0.##}" + (texture == null ? "" : $" in {texture}");
             } catch (Exception e) {
                 return $"sprite unreadable ({e.GetType().Name})";
+            }
+        }
+
+        /// <summary>
+        /// What each material of a renderer draws with: its name, its shader, the texture it draws and the keywords
+        /// it starts with.
+        /// </summary>
+        public static string Materials(
+            AssetsManager sceneManager,
+            AssetsFileInstance instance,
+            FileContext context,
+            AssetTypeValueField materials
+        ) {
+            var parts = materials.Children.Select(pointer => Material(sceneManager, instance, context, pointer));
+            return materials.Children.Count == 0 ? "no material" : string.Join(" + ", parts);
+        }
+
+        private static string Material(
+            AssetsManager sceneManager,
+            AssetsFileInstance instance,
+            FileContext context,
+            AssetTypeValueField pointer
+        ) {
+            var pathId = pointer["m_PathID"].AsLong;
+            if (pathId == 0) {
+                return "no material";
+            }
+
+            var fileId = pointer["m_FileID"].AsInt;
+            try {
+                var fileName = context.FileNameOf(fileId);
+                var file = fileId == 0 ? instance : FindFile(fileName);
+                var info = file?.file.GetAssetInfo(pathId);
+                if (info == null) {
+                    return $"material in {fileName}";
+                }
+
+                var manager = fileId == 0 ? sceneManager : Manager;
+                var material = manager.GetBaseField(file, info);
+                string texture = null;
+                foreach (var pair in material.Get("m_SavedProperties", "m_TexEnvs", "Array")?.Children ?? []) {
+                    if (pair["first"].AsString == "_MainTex") {
+                        texture = TextureName(file, pair["second"]["m_Texture"], manager);
+                    }
+                }
+
+                var keywords = material.Get("m_ValidKeywords", "Array")?.Children.Select(k => k.AsString).ToList() ??
+                               [];
+                return $"material '{material["m_Name"].AsString}' of {ShaderName(file, material["m_Shader"], manager)}" +
+                       (texture == null ? "" : $" on {texture}") +
+                       (keywords.Count == 0 ? "" : $" with {string.Join(" ", keywords)}");
+            } catch (Exception e) {
+                return $"material unreadable ({e.GetType().Name})";
+            }
+        }
+
+        /// <summary>
+        /// The name of the shader that a material draws with, or the file it is in when that is not one of the
+        /// bundles, like the shaders built into the game.
+        /// </summary>
+        private static string ShaderName(AssetsFileInstance file, AssetTypeValueField pointer, AssetsManager manager) {
+            try {
+                var pathId = pointer["m_PathID"].AsLong;
+                var fileId = pointer["m_FileID"].AsInt;
+                if (pathId == 0) {
+                    return "no shader";
+                }
+
+                var target = file;
+                if (fileId != 0) {
+                    var externals = file.file.Metadata.Externals;
+                    if (fileId - 1 >= externals.Count) {
+                        return "a shader of an unknown file";
+                    }
+
+                    var pathName = externals[fileId - 1].PathName;
+                    target = FindFile(pathName[(pathName.LastIndexOf('/') + 1)..]);
+                    manager = Manager;
+                    if (target == null) {
+                        return $"a shader in {pathName}";
+                    }
+                }
+
+                var info = target.file.GetAssetInfo(pathId);
+                return info == null
+                    ? "a shader not found"
+                    : $"'{manager.GetBaseField(target, info).Get("m_ParsedForm", "m_Name")?.AsString ?? "?"}'";
+            } catch (Exception e) {
+                return $"a shader unreadable ({e.GetType().Name})";
             }
         }
 
