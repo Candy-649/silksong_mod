@@ -127,11 +127,17 @@ OVERRIDES = {
     'BelltownFurnishingSpaAvailable': ('shared-world', 'offered once the shared house has two furnishings '
                                                        '(GameManager.TimePassesElsewhere)'),
     'BelltownHousePaintComplete': ('shared-world', 'set once the shared house is painted (TimePassesElsewhere)'),
+    # What the desk of the shared house puts together (CollectionViewerDesk: Section.Unlock takes the item and then
+    # sets the flag), which is there once for both, as the user decided on 2026-11-01: a player who agreed in a box
+    # gives up their item with the other's, and their house had nothing to show for it
+    'ConstructedMaterium': ('shared-world', 'put together at the desk of the shared house, once for both'),
+    'ConstructedFarsight': ('shared-world', 'put together at the desk of the shared house, once for both'),
 }
 # What the shared house has, which nothing takes away again: a check keeps it if either save has it
 HOUSE_RECORDS = {
     'BelltownFurnishingDesk', 'BelltownFurnishingFairyLights', 'BelltownFurnishingGramaphone', 'BelltownFurnishingSpa',
-    'BelltownHouseColour', 'BelltownFurnishingSpaAvailable', 'BelltownHousePaintComplete',
+    'BelltownHouseColour', 'BelltownFurnishingSpaAvailable', 'BelltownHousePaintComplete', 'ConstructedMaterium',
+    'ConstructedFarsight',
 }
 # The wins of arenas that save them in the player data (BattleScene.setPDBoolOnEnd and setExtraPDBoolOnEnd). An arena
 # that one player won counts as won for both, as the user decided on 2026-10-02. The arenas that count as bosses keep

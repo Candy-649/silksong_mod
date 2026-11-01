@@ -68,11 +68,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: thrown-things.md; 436239d, 0d83bfc, e39f681, db7b214. USER 09-23 "道具碎片都同步一下吧，就按照你说的做".
 
 ### D09 The owner's game rolls the random parts of a skill or tool
-- Now: the owner's game rolls offsets, angles, turns and waits, and the copy uses those numbers. Tacks and pins send where each piece went (7be1749). Rune Rage names each cluster and rolls by the name (`RollAs`, 0a96923).
-- Replaced: copies rolling for themselves (`Animation/Effects/Tools/Tacks.cs` offsets, `Longpin.cs` angle, `SilkSkills/RuneRage.cs` rotation and waits).
+- Now: the owner's game rolls offsets, angles, turns and waits, and the copy uses those numbers. Tacks and pins send where each piece went (7be1749); a throw whose effect carries no placements shows no copies and logs a line (11-01). Rune Rage names each cluster and rolls by the name (`RollAs`, 0a96923).
+- Replaced: copies rolling for themselves (`Animation/Effects/Tools/Tacks.cs` offsets, `Longpin.cs` angle, `SilkSkills/RuneRage.cs` rotation and waits), and the tack and pin copies' own roll as a fallback when no placement came (Tacks, Longpin, ThreefoldPin; removed 11-01, 0.4.143).
 - Old-way signs: `Random.Range` / `UnityEngine.Random` inside a remote effect copy that decides where or when something goes.
 - Exceptions: copy audio pitch (`EntityFsmActions.Audio.cs`) and per-frame jitter or flicker stay per game.
-- Source: same-rule-audit-todo.md item 9; 7be1749, 0a96923. USER 10-22 "第二个要同步一下，其他两个算了，只影响音效或者背景板的问题很小".
+- Source: same-rule-audit-todo.md item 9; 7be1749, 0a96923. USER 10-22 "第二个要同步一下，其他两个算了，只影响音效或者背景板的问题很小". The fallback: asked after the first tidy (11-01), the user didn't follow the question ("这啥玩意？没听懂"), so it was settled by their own rule 谁扔的谁掷 and removed.
 
 ### D10 The partner figure stays on layer 0 with depth sorting
 - Now: the partner's figure is on layer 0, so nothing in the room detects it. It is sorted by depth only (z 0.0041). The room's tint reaches it by events, not by copying every frame, and it hides wherever the game hides the hero. New figure problems extend this method.
@@ -289,11 +289,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: story-flags-facts.md; 4c35dd7, 348ec6c. USER 10-30 "联机应该看所有人的状态而不是房主的状态".
 
 ### D40 Wishes and shared prompts go through agreement by both
-- Now: accepting a wish needs both players to reach it, including wishes a key dialogue begins without a prompt (`CoopSave.WishRead`). Shared yes/no prompts agree on two yeses at the same prompt key (`CoopSave.WishConfirm`). Anyone may open a wish board at any time. At a turn-in the first to arrive turns in, the partner is asked there, and each gets their own reward.
-- Replaced: the one-FSM special case `PartnerAccepts` (3e671fd, 0.4.83, replaced by 4b965c9); the board refusal "X 正在用这块板子" (removed 2350c64); a no shown when nobody gave one (acdee91).
-- Old-way signs: a wish or prompt branch for one quest or one FSM; refusals of one player because the other is using something.
+- Now: accepting a wish needs both players to reach it, including wishes a key dialogue begins without a prompt (`CoopSave.WishRead`). Shared yes/no prompts agree on two yeses at the same prompt key (`CoopSave.WishConfirm`). Anyone may open a wish board at any time. At a turn-in the first to arrive turns in, the partner is asked there, and each gets their own reward. A donation at a board asks every member in a box of ours wherever they are (WishConfirm kind "donate", `DonationHold` in `CoopSave.WishCopyCheck`; 11-01, 0.4.143), as using up what the story keeps already did (kind "item", the desk of the shared house among them); talking about a wish with a character and turning one in still need the members there. A box that has to wait to be shown logs why, and again when that changes.
+- Replaced: the one-FSM special case `PartnerAccepts` (3e671fd, 0.4.83, replaced by 4b965c9); the board refusal "X 正在用这块板子" (removed 2350c64); a no shown when nobody gave one (acdee91); a donation that needed every member close by the board and asked their games what they carry (`CanDonateTogether` with `GetBoardAbsence`, the WishCopyCheck question for donations; until 11-01).
+- Old-way signs: a wish or prompt branch for one quest or one FSM; refusals of one player because the other is using something; a donation or other shared spend refused because a member isn't close by.
 - Exceptions: none known.
-- Source: wish-dialogue.md, dialogue-wish-copied-accept.md, shared-prompt-agreement.md, fix-the-mechanism-not-one-object.md; 4b965c9, acdee91, 79abcc9, 2350c64, 5a8f17a. USER 10-08 "如果那段对话说完游戏会让我接下一个祈愿，那为什么不按照接祈愿的流程来"; USER 10-01 "先把一个人看祈愿板另一个人看不了删了".
+- Source: wish-dialogue.md, dialogue-wish-copied-accept.md, shared-prompt-agreement.md, fix-the-mechanism-not-one-object.md; 4b965c9, acdee91, 79abcc9, 2350c64, 5a8f17a. USER 10-08 "如果那段对话说完游戏会让我接下一个祈愿，那为什么不按照接祈愿的流程来"; USER 10-01 "先把一个人看祈愿板另一个人看不了删了"; USER 11-01 "与角色聊愿望需要队友到，不然会错过对话，但是捐钱修建可以改成远程弹窗，交愿望……我觉得最好是还是要求到场".
 
 ### D41 Each player reads the story at their own pace
 - Now: each player goes through dialogue and story at their own pace. Only the step that cannot happen twice waits for both.
@@ -400,6 +400,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: none known.
 - Source: no-leave-key.md; 040a808, e38fdf9. USER 10-14 "能不能把不等了删掉，现在的情况根本不需要这个不等了".
 
+### D72 The shared house has one set of furnishings and constructions for both
+- Now: what the players' house has is the same in every save: the furnishings and paint one player buys (`CoopSave.SharedPurchases`) and what the desk puts together (`ConstructedMaterium`, `ConstructedFarsight`), as shared-world flags that a check keeps if either save has them (`OVERRIDES` and `HOUSE_RECORDS` in tools/coop_story_flags.py, SSMP/Resource/coop-story-flags.json).
+- Replaced: furnishings bought per player (until 10-18), and desk constructions per player (personal-reward by the `Constructed\w+` name rule; until 11-01, 0.4.143), with which a member who agreed in the desk's box gave up their item and their house got nothing.
+- Old-way signs: a flag of the house (`Belltown*` furnishing or paint, `Constructed*` of the desk) classed personal; a house thing bought or built in each save.
+- Exceptions: none known.
+- Source: house-furniture-shop.md, shared-prompt-agreement.md. USER 10-18 rule of one payer for the house; USER 11-01 "修建物质库之类的操作也需要另一个人到才能建" and the plan "一个人装好，两个人的钟居都算装好，跟家具一样" ("就这么改吧").
+
 ## D. Network, UI and the rest
 
 ### D56 Both games run the same build; no code for older versions
@@ -448,7 +455,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Now: all the mod's player-facing text goes through `SSMP/Util/Lang.cs` (`Lang.Pick`), with Chinese for a Chinese game, and the UI font picks a Chinese face for it.
 - Replaced: English-only texts by an earlier decision (until 09-16).
 - Old-way signs: `AddMessage(` or UI labels with a literal and no `Lang.Pick`.
-- Exceptions: usernames above heads use `TrajanPro-Bold SDF` (both players use English names, decided 09-17).
+- Exceptions: usernames above heads use `TrajanPro-Bold SDF` (both players use English names, decided 09-17). The replies of the server's admin commands (`SSMP/Game/Command/Server/*`) stay English only (USER 11-01 "只回英文就行", asked after the first tidy).
 - Source: chinese-ui-lang.md, coop-save-design.md; 8614b07, 05271ec.
 
 ### D63 Player text says what a thing comes to, never how, and names no story
