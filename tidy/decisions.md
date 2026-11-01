@@ -15,7 +15,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Now: a player's move sends only its steps, which are the character's counted clips. Every game plays the parts of the hero that come with the move from those clips (`Animation/Effects/PartsByClips.cs`, called from `AnimationManager.UpdatePlayerAnimation`).
 - Replaced: one on/off message per hero part through `HeroChildEffects` (6643be4, 09-22), with clips replayed per part by `HeroPartClips` (cb9de66). The super jump needles moved first (`SuperJumpNeedles`, ae77e03, 10-31). On 11-01 they were folded into `PartsByClips` with about 30 more parts (8880b9b), because separately sent parts arrived out of step with the move.
 - Old-way signs: a part that `HeroChildEffects` watches and sends although a clip tells when it shows; a new `UpdateManager.UpdatePlayerAnimation(AnimationClip.X, 0, effectInfo)` or another message for an effect the clip already implies; hooks on hero FSM states that only send a message (as `TauntVoice` did); the name `SuperJumpNeedles`.
-- Exceptions: parts whose clip does not tell them still go by messages (8880b9b lists them): the taunt thread (silk), the dash burst, the air and wall dash and wall cling effects, the backflip puff, the hunter sprint attack burst, the wanderer recoil stab, the wall bump, the silk charge wall slam, the updraft puff, the holding-attack glows, the can-bind glow, the needolin parts, the amplify effect, and the tool stand-ins. The `TauntVoice` clip stays in the enum so later IDs keep their values.
+- Exceptions: parts whose clip does not tell them still go by messages (8880b9b lists them): the taunt thread (silk), the dash burst, the air and wall dash and wall cling effects, the backflip puff, the hunter sprint attack burst, the wanderer recoil stab, the wall bump, the silk charge wall slam, the updraft puff, the holding-attack glows, the can-bind glow, the needolin parts, the amplify effect - both of its glows, the original and the copy `Amplify_Effect(Clone)` that the game plays every other song, with its fade-out sent as a change of its own (c353ab7) - and the tool stand-ins. The `TauntVoice` clip stays in the enum so later IDs keep their values.
 - Source: hero-child-effects-sync.md, prefer-light-network.md; ae77e03, 8880b9b, e5623d5. USER 10-31 "总之超级跳只需要两个消息，蓄力和发射", "其他的动画都绑定在这两个消息上", "就不会有这种网络问题"; USER 11-01 "你去普查一下其他地方还有没有类似的，是分开发送的，修掉".
 
 ### D02 A character's clips are counted in every update
@@ -63,7 +63,8 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 ### D08 The partner's tools are copies that only show
 - Now: four rules. (1) The copy of a tool looks and moves like the real one. (2) Damage counts once, in the owner's game, so the copy only shows. (3) Only the owner's attacks set a tool off: thrower copies cannot be hit, and a foreign tool's hit is dropped first (`IsThrowerCopy`, `IsForeignToolHit`). (4) A hit carries where the enemy was.
 - Replaced: tools that were not synced at all, such as the partner's sting shard, which hit the boss unseen (0.4.41, 436239d framework v2).
-- Old-way signs: a tool copy that runs damage or hit code; a local hit on a remote tool counted.
+- Also: what the hero's own code spawns as it is hurt with a tool on (the crystal of the memory tool, `HeroDamageSpawn`) is followed like a thrown tool; a copy takes its place and facing from the thrower only where `ToolCopyRules.TakesPlaceFromThrower` says so; a change of state that only the owner's game knows of in one state is held on the copy and made by itself after 1.5 s if the owner's change never comes (efdb9b1).
+- Old-way signs: a tool copy that runs damage or hit code; a local hit on a remote tool counted; an action of a copy rewritten from "the hero" to the thrower for every copy.
 - Exceptions: none known.
 - Source: thrown-things.md; 436239d, 0d83bfc, e39f681, db7b214. USER 09-23 "道具碎片都同步一下吧，就按照你说的做".
 
@@ -101,6 +102,20 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: a room or FSM reacting to one player's `HeroController` death or defeat event without the all-down check.
 - Exceptions: none known.
 - Source: only-both-down-counts.md. USER 10-10 "比试就按照所有boss战的标准来啊，早就说了只有两个人都死才在boss战里判定死了".
+
+### D73 Under a skin, Player Color colours nothing
+- Now: while a player wears a skin, Player Color colours nothing in their game and their cloak colour is not sent; a player whose skin pack dresses Hornet is drawn without colour on every other screen, whatever colour an older build sends (`SkinMods.KeepOffUnderSkins`, `PlayerManager.ShownColour`, `CloakColourPreview.ShownLook`). Choosing the game's own look again brings the colour back.
+- Replaced: Player Color always on, which under a skin coloured only what the skin has no art for: the friend's poisoned spike ball drew red in her game and, as SSMP drew it in her colour, with white knots and dark blocks in the user's (438f4cc, 0.4.143).
+- Old-way signs: a colour applied to, or sent for, a player who wears a skin; code that colours a copy by the cloak colour without asking whether the player wears a skin.
+- Exceptions: none known.
+- Source: skin-mod-compat.md, spike-ball-render-glitch.md; 438f4cc. USER 11-01 "我们都用其他皮肤了就不要启动这个player color, 不管选了什么颜色都不应该启动player color".
+
+### D74 A rider's height above a moving lift comes from the rider's own game
+- Now: on a moving lift each game sends how high its own hero stands above the lift (once when standing, about 20 times a second while jumping, once on landing, and a jump off mid-ride); the other games show the figure at that height on their lift (`CoopSave.Lifts`, `LiftReplay`, `CoopSaveUpdateKind.LiftRide`).
+- Replaced: the figure pinned to the lift at the height it boarded, as positions lag behind a moving lift; a jump at the start pinned it in the air (8481299, 0.4.143).
+- Old-way signs: a figure on a lift placed at a fixed offset taken once; a rider's height worked out in the watching game from late positions.
+- Exceptions: none known.
+- Source: lift-sync-facts.md; 8481299. USER 11-01 "对方的角色被定在电梯上的某个位置，可实际上人是能跳的".
 
 ## B. Creatures and their copies
 
@@ -257,6 +272,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: a grab or catch FSM state replayed onto the local player from the host.
 - Exceptions: none known.
 - Source: catches-and-grabs.md; f4f98b8, 3131f68, e9bebf3, 00870ea, 51889f9. USER 09-30 "藤蔓抓人也去做…统一适配", "两个都做", "为啥会有两个人影…改吧".
+
+### D75 A tag of damage shows on every screen; its health goes only where it was put on
+- Now: a tag (poison, zap, the dust of a bomb) that a player puts on a creature is sent to the members in the room (`CoopHitKind.EnemyTag`, a stack that is on already at most every 0.5 s) and shown on their own of the creature with ticks that take no health (`HealthManagerComponent.ShowTag`, the `ApplyTagDamage` hook); the game that runs the creature lets it hear of each shown tick as of its own (TOOK TAG DAMAGE, TOOK DAMAGE, SING DURATION END); the health of the ticks is counted as a blow of the player who put it on, in their game.
+- Replaced: tags only in the game of the player whose tool or needle it came from, so the other screen saw health go and nothing else (d605a75, 0.4.143).
+- Old-way signs: a tick on a copy or a shown stack that takes health; a tag effect that exists in one game only.
+- Exceptions: when both players put the same tag on, each game's own stack ticks (as before).
+- Source: d605a75. USER 11-01 "她用带毒的工具，实际上我这边似乎连毒的效果都看不到，就是怪物被毒的效果".
 
 ## C. Rooms, the world and saves
 
@@ -429,6 +451,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: timeouts that read one signal only; a disconnect taken from a lobby callback in `SteamManager` alone.
 - Exceptions: none known.
 - Source: relay-connection-timeout.md, host-leave-disconnect.md; 09c32b6, 82fa0e4, 7f96237. USER 10-25 "这个steam连接好奇怪，明明刚才还有看到我朋友在动，下一秒就断开连接了".
+
+### D76 A copy goes on the way it was going while the link is quiet
+- Now: when no position of a copy (a creature or a player) has come and nothing at all has come on the link, it is the link that is quiet: the copy goes on at its last speed and direction, full for 0.25 s and easing to a stop by 0.4 s, at most about a body length, stopping at walls; when other things keep coming but not its position, it really stopped and holds its last place. A late position is pulled in slowly (`LinkWatch`, `PredictiveInterpolation`, log [Smoothing]).
+- Replaced: a copy that stopped and stepped back as soon as two or three positions were late, then jumped on (c443536, 0.4.143).
+- Old-way signs: a copy stopped, or snapped back, on a late position without asking whether the link is quiet.
+- Exceptions: a quiet spell longer than 0.4 s still stops the copy; the partner's game freezing is not seen as a quiet link.
+- Source: c443536. USER 11-01 "丢包的时候怪一停一停的", "想让没收到位置的时候怪也能朝比较可能的方向移动".
 
 ### D59 No Steam queries per frame, and the game pumps Steam's callbacks
 - Now: Steam networking queries are read on the send loop and cached (`GetSessionConnectionInfo` / round trip, twice a second). The game pumps Steam's callbacks, and the mod's timer (`PumpGate`) stands in only after 1 s without a game pump.
