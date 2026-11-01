@@ -549,3 +549,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: chat commands or code paths only those commands reached (the /0 branch in the bench wake fix 0a3c332).
 - Exceptions: lasting commands the user asked for (`/copy`, `/memory`, `/giveup`, `/coopsave off`).
 - Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332.
+
+### D77 No defensive code
+- Now: code does what the case needs and no more. No try/catch "just in case" around calls that do not throw, no check for a null or a state that cannot happen there, no second way through for a case nobody has seen. A guard stays only for a state that really comes about: seen in a log, or made by the game's own code.
+- Replaced: guards added by habit or at a review's word, like the try/catch and the IsNone check that 4d2de23 took out of TakeOffTheSilkMarks (d1cb4cf).
+- Old-way signs: a try/catch that only logs and goes on around game calls that do not throw; `?.`, `!= null` or `TryGetValue` on what the same method or Awake has just set; a log line for what "should never happen"; a fallback branch with no case known that reaches it.
+- Exceptions: what comes over the network (a packet may be cut or come late); objects the game destroys while the mod still holds them (Unity's null); handlers that must not stop the game's own loop (D70).
+- Source: USER 11-01 "还有你那越来越多的防御性编程，我真是没招了"; 4d2de23.
