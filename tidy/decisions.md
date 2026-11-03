@@ -280,6 +280,20 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: when both players put the same tag on, each game's own stack ticks (as before).
 - Source: d605a75. USER 11-01 "她用带毒的工具，实际上我这边似乎连毒的效果都看不到，就是怪物被毒的效果".
 
+### D78 A creature's FSM numbers go with each move, and in between only what the other game reads
+- Now: the floats, vector2s and vector3s of a creature's host FSM go as the FSM goes into a state and ahead of each replay of its actions (`Entity.SendStateChange`, `AddVariableChanges` with all, `VariablesOwed`). In between go only the numbers that the other game reads there: those of the replayed actions that still run on the scene host (`HookedEntityAction.Reads`), and those that the copy's own answer to a wound reads (`WoundReadsOf`). Whole numbers, yes-or-no's and words still go as they change.
+- Replaced: every number that changed, every frame, the reliable way, though the other game read almost none of them: heights, fall speeds, distances and stun timers that the FSM counts for its own next move, which goes once (until c364d88).
+- Old-way signs: a creature's number sent every frame that only the scene host's FSM reads; a per-frame pass over a snapshot's floats that sends whatever changed.
+- Exceptions: none known.
+- Source: prefer-light-network.md; c364d88, 998729c (INSTALL). USER 11-03 "像织针这样本来就可以只发一次的，代码里还有没有每帧都发的", "这个数就是为了换招，而换招本身已经从房主那边传过来了所以不需要这个数".
+
+### D79 A creature's turn goes by its rule; only an aim goes every frame, the newest only
+- Now: the copy turns itself where the turn follows from what the other game has, and nothing of the turn goes meanwhile (`Entity.CopyTurnsItself`, `RotationComponent.TurnsOnTheCopy`): a replayed rule turn of the creature itself (Rotate every frame, RotateTo, AnimateRotationTo and V2, run on the copy by `RunMoment`), facing the way it is seen to go (FaceAngle, V2 and V3 every frame on a body, `FaceTheWayItIsSeenToGo`), a move that the copy plays by itself (D23), a body spinning by itself (D24). Any other turn: its first angle goes as data, each angle after it by the unreliable `EntityUpdateType.Rotation`, the newest only, and the angle it ends up at as data again, which the server keeps for walk-ins. Data and stream go in one order of the packets they were first sent in (`ReliableEntityUpdate.ReceivedSequence`; the reliable one wins a tie, being read after the other in a packet), on the server and in the other game.
+- Replaced: every changed angle every frame as reliable data, where an angle sent again after newer ones turned the copy back (until 63899e5).
+- Old-way signs: an angle, aim or facing sent every frame for a turn that a replayed action, the way the creature goes or a move the copy plays already decides; per-frame angles as reliable data; an angle taken without its packet order.
+- Exceptions: a turn that aims at a player frame after frame still goes every frame, the newest only: the copy cannot reproduce it.
+- Source: prefer-light-network.md; 63899e5. USER 11-03 "干啥每帧转啊", "不许再搞每帧转向这种屎山了", "不管实际负载怎么样都不应该逐帧发这种消息啊，这种稳定性太差了", "我建议你好好想想而不是突然就极端的和我说所有每帧同步都不需要保留", and "做吧" to the three kinds: a turn by a rule set at its start, one along its flight, an aim every frame.
+
 ## C. Rooms, the world and saves
 
 ### D36 A co-op save is a flag, aligned to the host's world at entry
