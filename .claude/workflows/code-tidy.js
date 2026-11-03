@@ -1,7 +1,7 @@
 export const meta = {
   name: 'code-tidy',
   description: 'Retire old ways in the co-op mod: find code that still follows a decision a better one replaced, code written twice, dead code and stale words; bring it onto the decision in force; build, commit, one review',
-  whenToUse: 'Once a week after a version is published, while the game is closed, or when the user asks to tidy the code (整理代码). Args: {since: "<commit of the last tidy>", date: "YYYY-MM-DD", first: true only on the very first run, maxApply: 10}',
+  whenToUse: 'Once a week after a version is published, or when the user asks to tidy the code (整理代码). Args: {since: "<commit of the last tidy>", date: "YYYY-MM-DD", first: true only on the very first run, maxApply: 10}',
   phases: [
     { title: 'Decisions', detail: 'bring the register of decisions in force up to date' },
     { title: 'Find', detail: 'one reader per group: old ways left, new code written twice, dead code, stale words' },
@@ -231,10 +231,9 @@ const APPLY_SCHEMA = {
         required: ['id', 'outcome'],
       },
     },
-    gameRunning: { type: 'boolean' },
     head: { type: 'string' },
   },
-  required: ['results', 'gameRunning', 'head'],
+  required: ['results', 'head'],
 }
 
 const REVIEW_SCHEMA = {
@@ -361,11 +360,10 @@ function applyPrompt(chunk, offset) {
     'For each item:',
     '1. Read its sites again. If it no longer holds, or you are not sure play stays as the plan says, skip it and say why. Do not widen an item past its steps: what you find on the way goes into your report, not into the code.',
     `2. Edit. Keep each file's line endings: some .cs files are CRLF and some LF (check with: file <path>). Use small Python scripts that read and write bytes (py, open(path, 'rb') and open(path, 'wb')), or the Edit tool followed by that check; never Git Bash sed -i, which strips the CRs of CRLF files. Afterwards git -C ${REPO} diff --stat must show only the lines you meant, never whole files.`,
-    "3. Before building, check that the game is closed: in PowerShell, (Get-Process | Where-Object { $_.ProcessName -match 'Hollow|Silksong' }).Count must print 0. If it does not, undo this item's edits (git checkout -- <files>), stop, and report gameRunning true: a build slows the players' laptops while they play.",
-    `4. Build: cd ${REPO} && dotnet build SSMP/SSMP.csproj -c Release -p:LangVersion=preview. It must print 已成功生成 and 0 个错误, and no warning but the two known CS0618 in HarpoonWatch.cs (2 个警告). If the item touches code that SSMPServer or ProtocolCheck compile too (Networking, Game/Server, shared helpers), build those as well: dotnet build SSMPServer/SSMPServer.csproj -c Release -p:LangVersion=preview, and the same for ProtocolCheck/ProtocolCheck.csproj. If a build fails and a small fix inside the item does not mend it, undo the item and skip it.`,
-    `5. Commit: write the message to a file outside the repository, then git -C ${REPO} commit -q -a -F <file> < /dev/null (git add new files first, git rm removed ones). The message: the subject from the plan (adjusted if the change came out different); a blank line; a body in plain English that says what was done the old way, which decision it follows now (register ID and its source) or why it was dead, every place changed, and why play stays the same (quiet) or what players will see (visible); then the lines "Code tidy ${DATE}." and "Version <the Version in SSMP/SSMP.csproj without its last .0>. Not tried in the game"; a blank line; and "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Do not push.`,
+    `3. Build: cd ${REPO} && dotnet build SSMP/SSMP.csproj -c Release -p:LangVersion=preview. It must print 已成功生成 and 0 个错误, and no warning but the two known CS0618 in HarpoonWatch.cs (2 个警告). If the item touches code that SSMPServer or ProtocolCheck compile too (Networking, Game/Server, shared helpers), build those as well: dotnet build SSMPServer/SSMPServer.csproj -c Release -p:LangVersion=preview, and the same for ProtocolCheck/ProtocolCheck.csproj. If a build fails and a small fix inside the item does not mend it, undo the item and skip it.`,
+    `4. Commit: write the message to a file outside the repository, then git -C ${REPO} commit -q -a -F <file> < /dev/null (git add new files first, git rm removed ones). The message: the subject from the plan (adjusted if the change came out different); a blank line; a body in plain English that says what was done the old way, which decision it follows now (register ID and its source) or why it was dead, every place changed, and why play stays the same (quiet) or what players will see (visible); then the lines "Code tidy ${DATE}." and "Version <the Version in SSMP/SSMP.csproj without its last .0>. Not tried in the game"; a blank line; and "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Do not push.`,
     'Never: push; change packet layouts or IDs, save formats, or the public API under SSMP/Api; take out a log line (the user reads the logs to find bugs, one line per event); edit installer/INSTALL.txt (the main session writes the notes); touch files outside the repository.',
-    'Return one result per item (its id; committed with the commit sha, or skipped or stopped with the reason), whether the game was running, and HEAD at the end.',
+    'Return one result per item (its id; committed with the commit sha, or skipped or stopped with the reason) and HEAD at the end.',
     'Items:',
     JSON.stringify(chunk),
   ].join('\n')
@@ -414,7 +412,7 @@ const missing = reports.filter(r => !r.findings).map(r => r.group)
 if (missing.length) log(`Group(s) ${missing.join(', ')} not covered this run: the reader did not finish.`)
 const count = reports.reduce((n, r) => n + (r.findings ? r.findings.length : 0), 0)
 log(`${count} findings from ${GROUPS.length - missing.length} readers`)
-if (!count) return { since: SINCE, date: DATE, decisions, reports, plan: null, results: [], gameRunning: false, review: null }
+if (!count) return { since: SINCE, date: DATE, decisions, reports, plan: null, results: [], review: null }
 
 phase('Plan')
 const plan = await agent(planPrompt(reports), { ...OPUS, label: 'plan', phase: 'Plan', schema: PLAN_SCHEMA })
@@ -427,7 +425,6 @@ log(`Plan: ${picked.length} to apply, ${plan.later.length} later, ${plan.big.len
 
 phase('Apply')
 const results = []
-let gameRunning = false
 let broken = false
 for (let i = 0; i < picked.length; i += CHUNK) {
   const chunk = picked.slice(i, i + CHUNK)
@@ -440,11 +437,6 @@ for (let i = 0; i < picked.length; i += CHUNK) {
     break
   }
   results.push(...r.results)
-  if (r.gameRunning) {
-    gameRunning = true
-    log('The game was started: applying stopped; the rest waits until it is closed.')
-    break
-  }
 }
 const committed = results.filter(r => r.outcome === 'committed' && r.commit)
 log(`${committed.length} commit(s) made`)
@@ -456,4 +448,4 @@ if (committed.length) {
   if (!review) log('The review did not finish: review the tidy commits before pushing them.')
 }
 
-return { since: SINCE, date: DATE, decisions, reports, plan, results, gameRunning, broken, review }
+return { since: SINCE, date: DATE, decisions, reports, plan, results, broken, review }
