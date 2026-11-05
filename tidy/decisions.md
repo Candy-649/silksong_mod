@@ -131,6 +131,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: inside a creature FSM's own take-over the template check stays (`BindCoop.IsTakeOver`); burst roars are dropped; HERO DAMAGED, LEAVING SCENE and LEVEL LOADED drop the held roars.
 - Source: bind-and-roar-facts.md; 37f8df2, f5d3829. USER 09-28 "改吧" (the intro goes on and holds the player as usual, the heal finishes; pausing the intro was turned down, "开场归开场，我回我的"); USER 10-04 "在我敷丝的时候屏蔽接管是这么困难的事情吗", "会接管角色的战吼就是会打断敷丝".
 
+### D86 The fight outline goes out only as the creatures that were hit die
+- Now: the outline of a player's own hero is lit while another player's figure is on their screen and a creature that a player hit in the room is still alive and active. It goes out when those creatures are all dead or gone, or the room changes, however long it is since the last hit (`FightOutline.IsFightOn`).
+- Replaced: 8 s after any last hit (c722004, 0.4.114); then 5 s without a hit on a creature that is no boss (`QuietTime`, df0eda9, with bosses let off in a549ef4), my addition beside the user's rule, removed 291b4b8 (0.4.150).
+- Old-way signs: a time since the last hit, or any timer, that ends the fight outline; bosses told apart for it.
+- Exceptions: none known.
+- Source: own-figure-outline.md, highlight-yourself.md; c722004, df0eda9, a549ef4, 291b4b8. USER 10-20 "只有两个人在同一个屏幕里的时候，如果有人打怪了，那么亮", "感觉8秒后有点久了", "打死就灭"; USER 11-05 "删掉 5 秒，打死才灭".
+
 ## B. Creatures and their copies
 
 ### D14 One local-first mechanism: the copy runs its own FSM
