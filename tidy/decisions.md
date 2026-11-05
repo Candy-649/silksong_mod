@@ -103,6 +103,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: none known.
 - Source: only-both-down-counts.md. USER 10-10 "比试就按照所有boss战的标准来啊，早就说了只有两个人都死才在boss战里判定死了".
 
+### D81 A player pulled up stands where they lay, or on the ground they last stood on; harm there is the game's
+- Now: a player pulled up from their cocoon stands where they lie when that is on the ground out of water. One who went down in the air or in water stands up, and their cocoon lies, where they last stood on the ground in that room while that ground is still there (`CoopSave.WhereToStandUp`, `NoteGroundStoodOn`), else at the game's safe place (`hazardRespawnLocation`). Lava, spikes or the sand of creatures there are left to the game: the 2 s after standing up take no health (`SetTakeNoDamage`), and the game puts a player who meets them back at its safe place.
+- Replaced: standing up at the safe place when the spot was in or over lava, spikes, a drop or such sand (`IsInOrOverTheRoomsHarm` in `WhereToStandUp`, 0.4.42 to 0.4.148, kept beside the 2 s by mistake since 5eb1939); standing up where the body would land falling from the spot (`WhereTheBodyLands`, 3148c6c, 0.4.145 to 0.4.148).
+- Old-way signs: a stand-up place chosen by looking for harm below or around it; a cast down from where a player went down to find where they land.
+- Exceptions: a death by a grinder (`ByGrinder`) stands up at the safe place; in the lava chase a player stands up beside the partner (D51), whose place keeps its own harm check; a room's corpse markers still place the cocoon (`WhereTheCocoonLies`).
+- Source: rescue-cocoon-design.md, revival-lava-floors.md, sand-centipede-rescue.md; 5eb1939, 3148c6c, faa337b. USER 10-18 "干脆直接改成像受击了一样给几秒无敌…就直接不扣血然后按照游戏本身的逻辑走"; USER 11-05 "岩浆尖刺那个判定不是取消了吗，改成2秒无敌了", "茧就不要摆在可以直接掉下去这么远的地方".
+
 ### D73 Under a skin, Player Color colours nothing
 - Now: while a player wears a skin, Player Color colours nothing in their game and their cloak colour is not sent; a player whose skin pack dresses Hornet is drawn without colour on every other screen, whatever colour an older build sends (`SkinMods.KeepOffUnderSkins`, `PlayerManager.ShownColour`, `CloakColourPreview.ShownLook`). Choosing the game's own look again brings the colour back.
 - Replaced: Player Color always on, which under a skin coloured only what the skin has no art for: the friend's poisoned spike ball drew red in her game and, as SSMP drew it in her colour, with white knots and dark blocks in the user's (438f4cc, 0.4.143).
