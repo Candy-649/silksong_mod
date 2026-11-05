@@ -394,6 +394,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: the hold before a fight starts (`BossRoomCoop.Wait`, D42).
 - Source: boss-disconnect-checkpoint.md; e6ddcfb, aec7b7e, 776fad8. USER 09-15 "就按这个方案，然后战死保持原版" (a death was then the game's own; the cocoon of D12 came later).
 
+### D87 The end of a creature that takes a player's character is watched by the others, hidden
+- Now: when an action of the FSM of a creature with no health left takes the local character's control (an end played with a parry and a last blow), that game tells the room (`BossRoomUpdateKind.EndingTook`). Every other player there who is not down or dead hides their own character with its name and holds it where it is (`BossRoomCoop.Endings`), until that character has control again (`EndingGaveBack`, sent from the RegainControl hook of `BossRoomCoop.Wait`), its player leaves the room, or the room changes. Meanwhile what creatures draw of a player anywhere in the room is drawn in the watched player's look, with no 2-unit reach (`HeldLook.EndingFigure`). Control taken for the watch is given back only if `HeroController.ControlVersion` still matches, as `MinigameCoop.LetHeroGo` does.
+- Replaced: the other players' characters standing beside the end while their copy of the creature skipped what it does to "the player" (D17), and the stand-in drawn in the local player's look more than 2 units from the hidden player (6439982, 0.4.148).
+- Old-way signs: a watcher left free and shown during such an end; hiding or holding a watcher in code for one boss; a stand-in of a watched end dressed by distance alone.
+- Exceptions: a player who is down or dead is left as they are. The camera still follows the local player's own hidden character (not changed). Mine, not the user's: the end of the watch when the player leaves the room or the room changes, leaving a player down or dead alone, and the ControlVersion check.
+- Source: 0598893 (SSMP 0.4.150). USER 11-05 "那个幽影最后的动画我只看到一半……只能看到我朋友在演，但是我在旁边站着", then chose "都看房主演" (offered as "整段都是房主的大黄蜂在演，前半段替身也画成她的样子；另一个人的大黄蜂先藏起来，演完再出来，只看不演"). I told the user it also applies to later bosses whose end takes a character the same way.
+
 ### D43 An arena one player won is won for both
 - Now: a battle scene won by one player counts as won for every player, in the save and live in the room. The 7 boss-titled arenas count as bosses (D42).
 - Replaced: the earlier default in arena-coop-design.md (one player's win was only theirs).
