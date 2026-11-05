@@ -69,7 +69,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: thrown-things.md; 436239d, 0d83bfc, e39f681, db7b214. USER 09-23 "道具碎片都同步一下吧，就按照你说的做".
 
 ### D09 The owner's game rolls the random parts of a skill or tool
-- Now: the owner's game rolls offsets, angles, turns and waits, and the copy uses those numbers. Tacks and pins send where each piece went (7be1749); a throw whose effect carries no placements shows no copies and logs a line (11-01). Rune Rage names each cluster and rolls by the name (`RollAs`, 0a96923).
+- Now: the owner's game rolls offsets, angles, turns and waits, and the copy uses those numbers. Tacks and pins send where each piece went (7be1749); a throw whose effect carries no placements shows no copies and logs a line (11-01). Rune Rage names each cluster and both games roll by the name (`RollAs`, 0a96923), which is the separate rolling that D27 makes only the fallback: it goes over to D27's table when that is built.
 - Replaced: copies rolling for themselves (`Animation/Effects/Tools/Tacks.cs` offsets, `Longpin.cs` angle, `SilkSkills/RuneRage.cs` rotation and waits), and the tack and pin copies' own roll as a fallback when no placement came (Tacks, Longpin, ThreefoldPin; removed 11-01, 0.4.143).
 - Old-way signs: `Random.Range` / `UnityEngine.Random` inside a remote effect copy that decides where or when something goes.
 - Exceptions: copy audio pitch (`EntityFsmActions.Audio.cs`) and per-frame jitter or flicker stay per game.
@@ -90,11 +90,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: highlight-yourself.md, own-figure-outline.md, map-head-facts.md. USER "任何高亮肯定是高亮自己的头像，名字，怎么可能高亮队友呢".
 
 ### D12 A player who goes down lies in a cocoon until pulled up
-- Now: a death that can be held lays the player down in a cocoon, and a teammate breaks it to pull them up at half health. The wait has no time limit: it ends when the cocoon is broken, when everyone is down, or by the co-op key (`CoopLeave`, K / L3). Each player sees and hits only their own cocoon. The game's death flow runs only when the death really happens.
-- Replaced: running `HeroController.Die` and undoing it field by field (09-26/27; lie-down 318a4b0). The wait limit went from 45 s to 3 min (0a70ffb) to none (331d7fa, 10-22). Cocoons shown in both games went away 09-16. The `Low Health Leak` spray that upstream's `Death.cs` copied onto the figure was removed (e3caf65).
+- Now: a death that can be held lays the player down in a cocoon, and a teammate breaks it to pull them up at half health and 5 silk; each hit on the cocoon gives the one who struck it a silk, and the line that they are up is said once they stand (`RescueStoodUp`). The wait has no time limit: it ends when the cocoon is broken, when everyone is down, or by the co-op key (`CoopLeave`, K / L3). Each player sees and hits only their own cocoon. The game's death flow runs only when the death really happens.
+- Replaced: running `HeroController.Die` and undoing it field by field (09-26/27; lie-down 318a4b0). The wait limit went from 45 s to 3 min (0a70ffb) to none (331d7fa, 10-22). Cocoons shown in both games went away 09-16. The `Low Health Leak` spray that upstream's `Death.cs` copied onto the figure was removed (e3caf65). A rescue gave 9 silk, and the line that the player was up came with the last hit (`CocoonBroken`).
 - Old-way signs: code that starts a game flow (death, respawn) and then puts its effects back by hand; rescue timeouts; copies of death effects onto the figure.
 - Exceptions: none known.
-- Source: rescue-cocoon-design.md, dont-run-then-undo.md, partner-cocoon-visual.md, partner-down-look.md; 318a4b0, 331d7fa, e3caf65. USER 09-27 "好麻烦，就不能没有真的死吗"; USER 10-22 "把死亡之后的观战那个三分钟cd自动回椅子删了".
+- Source: rescue-cocoon-design.md, dont-run-then-undo.md, partner-cocoon-visual.md, partner-down-look.md; 318a4b0, 331d7fa, e3caf65. USER 09-27 "好麻烦，就不能没有真的死吗", "给一半血加上5格丝…打茧的人打一下可以获得一格丝"; USER 10-06 "救人那个能不能真的救起来了再发救起来了"; USER 10-22 "把死亡之后的观战那个三分钟cd自动回椅子删了".
 
 ### D13 A fight is lost only when every player is down
 - Now: any fight (boss, arena, spar, or a fight whose loss is not lethal) is lost only when every player is down, and the room reacts to a defeat only then. `CoopSave.WrapDeath` lays non-lethal deaths down like lethal ones.
@@ -104,11 +104,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: only-both-down-counts.md. USER 10-10 "比试就按照所有boss战的标准来啊，早就说了只有两个人都死才在boss战里判定死了".
 
 ### D81 A player pulled up stands where they lay, or on the ground they last stood on; harm there is the game's
-- Now: a player pulled up from their cocoon stands where they lie when that is on the ground out of water. One who went down in the air or in water stands up, and their cocoon lies, where they last stood on the ground in that room while that ground is still there (`CoopSave.WhereToStandUp`, `NoteGroundStoodOn`), else at the game's safe place (`hazardRespawnLocation`). Lava, spikes or the sand of creatures there are left to the game: the 2 s after standing up take no health (`SetTakeNoDamage`), and the game puts a player who meets them back at its safe place.
+- Now: a player pulled up from their cocoon stands where they lie when that is on the ground out of water. One who went down in the air or in water stands up, and their cocoon lies, where they last stood on the ground in that room while that ground is still there (`CoopSave.WhereToStandUp`, `NoteGroundStoodOn`), else at the game's safe place (`hazardRespawnLocation`). Lava, spikes or the sand of creatures there are left to the game: the 2 s after standing up take no health (`SetTakeNoDamage`) and add nothing to the frost bar (`TickFrostEffect` held, `_rescueHoldsBuildup`, 789b0db), and the game puts a player who meets them back at its safe place.
 - Replaced: standing up at the safe place when the spot was in or over lava, spikes, a drop or such sand (`IsInOrOverTheRoomsHarm` in `WhereToStandUp`, 0.4.42 to 0.4.148, kept beside the 2 s by mistake since 5eb1939); standing up where the body would land falling from the spot (`WhereTheBodyLands`, 3148c6c, 0.4.145 to 0.4.148).
 - Old-way signs: a stand-up place chosen by looking for harm below or around it; a cast down from where a player went down to find where they land.
 - Exceptions: a death by a grinder (`ByGrinder`) stands up at the safe place; in the lava chase a player stands up beside the partner (D51), whose place keeps its own harm check; a room's corpse markers still place the cocoon (`WhereTheCocoonLies`).
-- Source: rescue-cocoon-design.md, revival-lava-floors.md, sand-centipede-rescue.md; 5eb1939, 3148c6c, faa337b. USER 10-18 "干脆直接改成像受击了一样给几秒无敌…就直接不扣血然后按照游戏本身的逻辑走"; USER 11-05 "岩浆尖刺那个判定不是取消了吗，改成2秒无敌了", "茧就不要摆在可以直接掉下去这么远的地方".
+- Source: rescue-cocoon-design.md, revival-lava-floors.md, sand-centipede-rescue.md; 5eb1939, 3148c6c, faa337b. USER 10-18 "干脆直接改成像受击了一样给几秒无敌…就直接不扣血然后按照游戏本身的逻辑走"; USER 10-25 "我觉得就改成这两秒锁血也不导致任何积蓄条增加就行了"; USER 11-05 "岩浆尖刺那个判定不是取消了吗，改成2秒无敌了", "茧就不要摆在可以直接掉下去这么远的地方".
 
 ### D73 Under a skin, Player Color colours nothing
 - Now: while a player wears a skin, Player Color colours nothing in their game and their cloak colour is not sent; a player whose skin pack dresses Hornet is drawn without colour on every other screen, whatever colour an older build sends (`SkinMods.KeepOffUnderSkins`, `PlayerManager.ShownColour`, `CloakColourPreview.ShownLook`). Choosing the game's own look again brings the colour back.
@@ -123,6 +123,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: a figure on a lift placed at a fixed offset taken once; a rider's height worked out in the watching game from late positions.
 - Exceptions: none known.
 - Source: lift-sync-facts.md; 8481299. USER 11-01 "对方的角色被定在电梯上的某个位置，可实际上人是能跳的".
+
+### D84 A heal goes on through a roar or intro that takes the hero over
+- Now: while a player binds, a roar or a fight's intro that takes the hero over waits until the heal is over: the hero's Roar and Wound States hold their "ROAR *" events, and an FSM CANCEL to the Bind FSM from an FSM outside the hero is dropped (`BindCoop`). The intro itself goes on, and what it does to the player comes after the heal.
+- Replaced: a check of the `take_hero_control` template alone (37f8df2, 0.4.57), which let roars that take the hero over without it cut the heal short (f5d3829, 0.4.75).
+- Old-way signs: a bind cancelled by a creature's or a room's FSM while `cState.isBinding`; an intro paused, or a take-over skipped, for a player who binds.
+- Exceptions: inside a creature FSM's own take-over the template check stays (`BindCoop.IsTakeOver`); burst roars are dropped; HERO DAMAGED, LEAVING SCENE and LEVEL LOADED drop the held roars.
+- Source: bind-and-roar-facts.md; 37f8df2, f5d3829. USER 09-28 "改吧" (the intro goes on and holds the player as usual, the heal finishes; pausing the intro was turned down, "开场归开场，我回我的"); USER 10-04 "在我敷丝的时候屏蔽接管是这么困难的事情吗", "会接管角色的战吼就是会打断敷丝".
 
 ## B. Creatures and their copies
 
@@ -220,7 +227,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 ### D27 A named thing carries a table of pre-rolled seeds (decided, not built)
 - Now: when a game names a thing (a throw, a trap, a hit or touch on a room object, a machine round, a shown or told part, an `ObjectBounce` of a thrown thing), it pre-rolls with its own dice a seed for the first 4 uses of each rolling action and the first 8 bounces. The seeds go in the same message, and both games use them. Past the table, or for a roll nobody foresaw, both fall back to the named seed.
 - Replaced: named rolls that each game computes from the name, the action and a count (flock flyers 09-27, thrown things 10-13, then shown and told parts, machine rounds, traps and hit room objects).
-- Old-way signs: `SharedDice.RollByName` (and its 6 users) as the only source of a named thing's rolls.
+- Old-way signs: `SharedDice.RollByName` (and its 6 users) and `SharedDice.RollAs` (the clusters of Rune Rage, 0a96923, built the evening of the ruling the old way) as the only source of a named thing's rolls.
 - Exceptions: flock flyers, decided at load before any word, use the fallback only.
 - Source: same-rule-audit-todo.md item 8 (no commit found that builds it). USER 10-22 "不可以分开掷骰子…一次性把能投的都投了，但是同时用同一个种子的骰子兜底".
 
@@ -251,6 +258,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: `gameObject.SetActive` on a copy root outside `UpdateIsActive`.
 - Exceptions: none known.
 - Source: walk-in-copies-under-off-group.md, server-kept-entity-active.md; 367a2ac, 550e323.
+
+### D82 The game expected to run a room keeps its creatures running
+- Now: while a room settles who runs it, the game expected to run it (`EntityManager.RunsTheRoom`: the scene host, or before the server has said, the game that came into the room with nobody else in it) keeps its creatures running (`EntityProcessor.KeepsRunning` into `Entity(keepsRunning)`): no switch-off in the constructor, no `HideTheRoomsOwnCopy`, and no switch-on with a position save in `InitializeHost`.
+- Replaced: every creature switched off while the room settled and on again in `InitializeHost`, which started its FSMs over, so a creature that had hidden itself lost the one state that gave its body back; `RememberWhereTheHostFsmsAre` / `PutHostFsmsBackWhereTheyWere` (e11660b, 0.4.30) and a position save repaired it, until 6e0ff59 (0.4.51).
+- Old-way signs: a new `Object.Host.SetActive(false)` on the side that runs the room during the wait; FSMs put back by hand after a switch-on of the mod's own.
+- Exceptions: when the guess was wrong, `InitializeClient` switches the creatures off the old way, with the repair.
+- Source: fsm-restart-loses-the-body.md, dont-run-then-undo.md; e11660b, 6e0ff59. USER 09-27 "就不能不关吗", "为啥不是谁先进房间归谁", then "行" to this.
 
 ### D32 A creature's clip start is sent once, the reliable way
 - Now: the clip a creature starts goes once in `ReliableEntityUpdate`, and a resent or overtaken clip is told apart by the packet it came in.
@@ -308,12 +322,19 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: a state that a global transition goes to, or one reached by what told the FSM from outside, still takes the copy out of the move at once. Things that the room syncs on their own beside the creature - what it throws, parts that are entities of their own - are not delayed with it, and a creature that never stands still stays behind until the local player does something to it.
 - Source: move-runs.md; 6ca2953, 1514cd2, 685b9d9 (INSTALL). USER 11-03 "这类客机先演的动作就应该演完接着演压下来的动作然后接着演主机新放回来的动作，不要屏蔽了"; the user chose (11-03) making the lag up while the creature stands still, and taking it all in at once when the local player hits it.
 
+### D85 A copy told it died keeps nothing going from before the death
+- Now: a replay that lasts until its state is left (particles, sounds, switches and colliders undone on exit, every-frame setters, delayed switches, singing, spawning over time) ends at once when the scene host's FSM has left that state already (`ActionInState.Register`), so nothing that lasts from before a creature's death goes on in its copy. A one-off replay that comes late still plays, as it is what the scene host's creature did.
+- Replaced: the copy throwing away all but its death once told it died (`HealthManagerComponent.CopyToldItDied`, `EntityFsmActions.LeaveAllButHostState`, replays of other states dropped while `ToldDead`; 793a112), taken back the same day (352e1ab): it lost drops, let-outs and switch-ons the scene host really did, and the replays of the 15 kinds of creature whose FSM marks them dead and goes on acting (SetIsDead).
+- Old-way signs: replays dropped because the copy was told it died; a lasting replay kept under a state that the scene host's FSM has left.
+- Exceptions: none known.
+- Source: copy-told-dead.md; 793a112, 352e1ab. USER 10-18 "死亡消息到就其他动作都扔了"; the narrowing to what that was for is mine, after the review, and the user was told.
+
 ## C. Rooms, the world and saves
 
 ### D36 A co-op save is a flag, aligned to the host's world at entry
 - Now: a save is only marked as co-op. It needs at least 2 players, and the joiner's save takes the host's world as it loads. There are no member lists and no pairing. Where the two saves differ, the host's record wins.
-- Replaced: the member-bound shared save with three-step pairing and a pairing key (coop-save-design.md, 9e79d96), then auto pairing (82b0ab3, 0.4.90, never published), both replaced by 63ccd82 (0.4.91).
-- Old-way signs: member lists, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing` — check what still calls it), tools that pair saves.
+- Replaced: the member-bound shared save with three-step pairing and a pairing key (coop-save-design.md, 9e79d96), then auto pairing (82b0ab3, 0.4.90, never published), both replaced by 63ccd82 (0.4.91). The marker kept the first member's key and name in `partnerKey` / `partnerName` for older builds, with `TakeOverPartner` and `pairedUtc`, until 5ad5f27 (0.4.150).
+- Old-way signs: member lists kept beyond a session, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing`, `partnerKey`, `partnerName`, `TakeOverPartner`), tools that pair saves. The marker's `Members` is the roster of one session (`StartRoster`), not a pairing.
 - Exceptions: `/coopsave off` makes a save normal again.
 - Source: host-aligned-coop-save.md, auto-pairing.md, coop-save-design.md; 63ccd82, 82b0ab3. USER 10-11 "不要给存档限定成员，只限定这个存档是用来联机的，至少有两个人才能玩".
 
@@ -340,15 +361,15 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 
 ### D40 Wishes and shared prompts go through agreement by both
 - Now: accepting a wish needs both players to reach it, including wishes a key dialogue begins without a prompt (`CoopSave.WishRead`). Shared yes/no prompts agree on two yeses at the same prompt key (`CoopSave.WishConfirm`). Anyone may open a wish board at any time. At a turn-in the first to arrive turns in, the partner is asked there, and each gets their own reward. A donation at a board asks every member in a box of ours wherever they are (WishConfirm kind "donate", `DonationHold` in `CoopSave.WishCopyCheck`; 11-01, 0.4.143), as using up what the story keeps already did (kind "item", the desk of the shared house among them); talking about a wish with a character and turning one in still need the members there. A box that has to wait to be shown logs why, and again when that changes.
-- Replaced: the one-FSM special case `PartnerAccepts` (3e671fd, 0.4.83, replaced by 4b965c9); the board refusal "X 正在用这块板子" (removed 2350c64); a no shown when nobody gave one (acdee91); a donation that needed every member close by the board and asked their games what they carry (`CanDonateTogether` with `GetBoardAbsence`, the WishCopyCheck question for donations; until 11-01).
+- Replaced: the one-FSM special case `PartnerAccepts` (3e671fd, 0.4.83, replaced by 4b965c9); the board refusal "X 正在用这块板子" (removed 2350c64); a no shown when nobody gave one (acdee91); the partner's money and items kept in this game to judge a turn-in (`_partnerWishProgress` for what is used up, the CanComplete hook with `PartnerLacksCopy`, `NoticeMissingCopy`, `_localCopiesOnly`; USER 10-01 "为啥要存队友的资源状态啊", then asked at the turn-in); a donation that needed every member close by the board and asked their games what they carry (`CanDonateTogether` with `GetBoardAbsence`, the WishCopyCheck question for donations; until 11-01).
 - Old-way signs: a wish or prompt branch for one quest or one FSM; refusals of one player because the other is using something; a donation or other shared spend refused because a member isn't close by.
-- Exceptions: none known.
+- Exceptions: a player who comes to a board while a member's turn-in or donation is going on there opens it without turning in, and a donation of theirs waits until that is done (`StartBoardTalk`, `CanDonateTogether`), so that one turn-in at a board goes at a time. That is my addition: the user took away only the refusal to open (10-01).
 - Source: wish-dialogue.md, dialogue-wish-copied-accept.md, shared-prompt-agreement.md, fix-the-mechanism-not-one-object.md; 4b965c9, acdee91, 79abcc9, 2350c64, 5a8f17a. USER 10-08 "如果那段对话说完游戏会让我接下一个祈愿，那为什么不按照接祈愿的流程来"; USER 10-01 "先把一个人看祈愿板另一个人看不了删了"; USER 11-01 "与角色聊愿望需要队友到，不然会错过对话，但是捐钱修建可以改成远程弹窗，交愿望……我觉得最好是还是要求到场".
 
 ### D41 Each player reads the story at their own pace
 - Now: each player goes through dialogue and story at their own pace. Only the step that cannot happen twice waits for both.
 - Replaced: the lockstep "both watch the story together", with lines copied to a frozen partner (f3edb47, e4e97c5).
-- Old-way signs: dead lockstep code kept on purpose: `SharedDialogue.HoldsEnd` (always false), `CoopSave.HoldsSharedTalkEnd`, the holding half of `TryHoldDialogueEnd`, `EndHeld`, `ReadingMessage`, `DialogueTimeout`, the held half of `ClearDialogues`.
+- Old-way signs: a hold on the end of a dialogue until the other players finish reading. Its dead code (`SharedDialogue.HoldsEnd`, `CoopSave.HoldsSharedTalkEnd`, `TryHoldDialogueEnd`, `EndHeld`, `ReadingMessage`, `DialogueTimeout`, the held half of `ClearDialogues`) went in dba83cf and 24d1e54 (11-01).
 - Exceptions: the boss entity's lines are copied to the reader (`BossRoomCoop.OnStartDialogue`); delivery talks (`CoopSave.IsSharedTalk`). `Waiting`/`Done` of `TryHoldDialogueEnd` still decide re-sharing to an entrant, so they must stay.
 - Source: shared-dialogue-copy-status.md.
 
@@ -358,6 +379,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: queues of player signs replayed into a boss FSM; a second start event besides `BossFightStartedEvent`.
 - Exceptions: ordinary arenas follow D43.
 - Source: boss-room-design.md, boss-arena-hold.md, same-rule-audit-todo.md item 5; d41e904, 93ec7ab, 776fad8, 947625d. USER 10-14 "只要两人不到齐，boss就收不到这些消息".
+
+### D83 A member who drops out ends a boss fight at its door for everyone
+- Now: a boss fight that begins with every player saves the game at its start and remembers the door each player came in through (`CoopSave.Checkpoint`, on `BossRoomCoop.BossFightStartedEvent`, raised by the boss arenas too since 776fad8). If a member drops out, every player leaves through that door and the boss waits as before a fight; the one who dropped is put at the door once they load again. The checkpoint ends with the win or when the players leave the room.
+- Replaced: nothing that was built. The user turned down a boss that stops and can't be hurt mid-fight until the one who dropped comes back (09-15).
+- Old-way signs: a boss or creature held, or made unable to be hurt, in the middle of a fight because a member is missing.
+- Exceptions: the hold before a fight starts (`BossRoomCoop.Wait`, D42).
+- Source: boss-disconnect-checkpoint.md; e6ddcfb, aec7b7e, 776fad8. USER 09-15 "就按这个方案，然后战死保持原版" (a death was then the game's own; the cocoon of D12 came later).
 
 ### D43 An arena one player won is won for both
 - Now: a battle scene won by one player counts as won for every player, in the save and live in the room. The 7 boss-titled arenas count as bosses (D42).
@@ -389,10 +417,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 
 ### D47 Plates are plates, things are things
 - Now: every `PressurePlateBase` goes through one plate channel, from touch and leave, and a partner's plate stands on itself. Lifts hear only their own calls. Trap plates press in every game, with a stander rule (fd8e3fd + c0a6af0).
-- Replaced: the TempGate-only filter and lifts coupled to their plates (45108c6, 09-27).
+- Replaced: the TempGate-only filter and lifts coupled to their plates (45108c6, 09-27); a press sent only as the plate went down (`Activate`, played on the partner with `StartDrop(true)`, about 1 s late; 675224a), now sent the moment the plate reacts, with a word that takes it back if the partner steps off.
 - Old-way signs: a mechanism read off its plate's state; plate handling inside lift code.
 - Exceptions: none known.
-- Source: pressure-plate-sync.md, lift-sync-facts.md; 45108c6, fd8e3fd. USER 09-27 "我不喜欢不统一的接口 … 踏板归踏板，物件归物件，两个都独立收发指令".
+- Source: pressure-plate-sync.md, lift-sync-facts.md; 45108c6, fd8e3fd. USER 09-27 "我不喜欢不统一的接口 … 踏板归踏板，物件归物件，两个都独立收发指令", "就不能压板响应的一瞬间就发送消息吗，如果队友后面下来了，再发送取消".
 
 ### D48 "Held while anyone holds it" is one helper (decided, not built)
 - Now: door plates, trap plates, pull rings, hatches and toll benches should share one helper (hold, release, forget member, forget room, walk-in resend), and each object keeps its own apply callback.
@@ -553,9 +581,9 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 ### D68 World time keeps running while connected
 - Now: while connected, the pause menu and the backpack leave world time running. Chat opens in cutscenes.
 - Replaced: a backpack that froze the world and the player's figure (a3d71ab, 10-23).
-- Old-way signs: `Time.timeScale = 0` or the game's pause paths taken while connected.
+- Old-way signs: `Time.timeScale = 0` or the game's pause paths taken while connected. Still so in the pause menu: the game's `PauseGameToggle` stops the time and `PauseManager` puts it back in the same step (the `HeroController.Pause` and `TogglePauseGame` hooks), where the backpack leaves `SetTimeScale` out (`_keepTimeRunning`). Nothing shows of it; it is the way to bring over to the backpack's.
 - Exceptions: none known.
-- Source: coop-pauses.md; a3d71ab, 00fa369. USER 10-23 "队友会停在看地图的一个过度动作上".
+- Source: coop-pauses.md, dont-run-then-undo.md; a3d71ab, 00fa369. USER 10-23 "队友会停在看地图的一个过度动作上".
 
 ### D69 Per-frame paths make no garbage and scans are event-driven
 - Now: per-frame, per-packet and per-hook paths make no garbage: reused handlers instead of closures, no enum name lookups per packet, and an object's name asked once (71a5e49). Hooks on shared game methods (`tk2dSpriteAnimator.Play`, `ObjectPool.Recycle`, `ActivateGameObject.OnEnter`, `HealthManager.Die`) are made once for all creatures and look the creature up. A room's fight FSMs are scanned once at load and then only for FSMs made later (`PlayMakerFSM.Init` / `Preprocess` hooks).
