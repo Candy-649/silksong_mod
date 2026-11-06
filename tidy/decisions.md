@@ -131,12 +131,12 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: inside a creature FSM's own take-over the template check stays (`BindCoop.IsTakeOver`); burst roars are dropped; HERO DAMAGED, LEAVING SCENE and LEVEL LOADED drop the held roars.
 - Source: bind-and-roar-facts.md; 37f8df2, f5d3829. USER 09-28 "改吧" (the intro goes on and holds the player as usual, the heal finishes; pausing the intro was turned down, "开场归开场，我回我的"); USER 10-04 "在我敷丝的时候屏蔽接管是这么困难的事情吗", "会接管角色的战吼就是会打断敷丝".
 
-### D86 The fight outline goes out only as the creatures that were hit die
-- Now: the outline of a player's own hero is lit while another player's figure is on their screen and a creature that a player hit in the room is still alive and active. It goes out when those creatures are all dead or gone, or the room changes, however long it is since the last hit (`FightOutline.IsFightOn`).
-- Replaced: 8 s after any last hit (c722004, 0.4.114); then 5 s without a hit on a creature that is no boss (`QuietTime`, df0eda9, with bosses let off in a549ef4), my addition beside the user's rule, removed 291b4b8 (0.4.150).
-- Old-way signs: a time since the last hit, or any timer, that ends the fight outline; bosses told apart for it.
-- Exceptions: none known.
-- Source: own-figure-outline.md, highlight-yourself.md; c722004, df0eda9, a549ef4, 291b4b8. USER 10-20 "只有两个人在同一个屏幕里的时候，如果有人打怪了，那么亮", "感觉8秒后有点久了", "打死就灭"; USER 11-05 "删掉 5 秒，打死才灭".
+### D86 The fight outline goes out as a boss that was hit dies, and for other creatures 5 s after the last attack either way
+- Now: the outline of a player's own hero is lit while another player's figure is on their screen and a creature that a player hit in the room still keeps the fight going. A boss (told apart as its bar of health is, `EnemyHealthBars.IsBoss`) keeps it going for as long as it is alive and active. Every other creature stops keeping it going once 5 s of the game went by with no attack either way in the fight: no attack of a player reaching a creature and no attack of a creature hurting this player (`FightOutline.QuietTime`, `_lastAttackAt`, `CoopSave.HurtByCreature` from `NoteHurt` for harm of the kinds NON_HAZARD, ENEMY and EXPLOSION). A death, the creature going away or being switched off, and a change of room end it as before. Each game judges its own screen and counts only its own player's hurts; nothing is sent. (5fbd1a5, 0.4.151.)
+- Replaced: 8 s after any last hit (c722004, 0.4.114); then 5 s without a hit on a creature that is no boss (df0eda9, my addition, with bosses let off in a549ef4), removed for deaths alone in 291b4b8 (0.4.150), under which a creature of the room that was hit once and left alive kept the outline lit after the boss of the fight was beaten.
+- Old-way signs: the outline of a non-boss fight kept on by a living creature with no attack for more than 5 s; a time that ends a boss's part of the fight; hits on creatures alone counted as attacks, without this player's hurts.
+- Exceptions: the other player's hurts are not known here, so the two games can go out a little apart. Mine, not the user's: the 5 s counted for the whole fight rather than for each creature, and "攻击" read as a creature's attack that hurts this player (not one that misses).
+- Source: own-figure-outline.md, highlight-yourself.md; c722004, df0eda9, a549ef4, 291b4b8, 5fbd1a5. USER 10-20 "只有两个人在同一个屏幕里的时候，如果有人打怪了，那么亮", "感觉8秒后有点久了", "打死就灭"; USER 11-05 "删掉 5 秒，打死才灭"; USER 11-06 "那个高光改回小怪或者精英怪5秒没有攻击或者被攻击就按掉".
 
 ## B. Creatures and their copies
 
