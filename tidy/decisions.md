@@ -536,6 +536,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: a quiet spell longer than 0.4 s still stops the copy; the partner's game freezing is not seen as a quiet link.
 - Source: c443536. USER 11-01 "丢包的时候怪一停一停的", "想让没收到位置的时候怪也能朝比较可能的方向移动".
 
+### D89 The ping display shows the share of packets lost, with no name
+- Now: beside the round trip, the top left shows "丢包 x%" (Lang.Pick "loss"): the share of the packets of the last 5 s that did not arrive, counted by the numbers every packet carries (`UpdateManager.LossShare`, in 0.5 s stretches; read twice a second, its text made only on a change). A client shows that of what the host sends it. The player who hosts, whose own game is linked to its own server and loses nothing, shows the largest among the clients of what they send to the server (`NetServer.WorstLossShare`, `PingInterface.HostedLoss`), with no name. No message is sent for it.
+- Replaced: nothing; new in 7b38fd4.
+- Old-way signs: a player's name beside the host's number; a loss sent between games for the display, or read every frame.
+- Exceptions: a stall over which the other side kept sending shows the packets lost in it for the 5 s after it. Mine, not the user's: the 5 s window, and the host's number being of what the clients send to it, the one way it can count without a message.
+- Source: 7b38fd4, INSTALL 5ee479f (SSMP 0.4.150). USER 11-06 "那个丢包率可不可以在左上角显示，客机显示主机那边包传过来的丢包率，主机要不然不显示，或者显示丢包率最高的", "按1做，但是主机不要带名字，万一人家名字很长怎么办，不需要带名字".
+
 ### D59 No Steam queries per frame, and the game pumps Steam's callbacks
 - Now: Steam networking queries are read on the send loop and cached (`GetSessionConnectionInfo` / round trip, twice a second). The game pumps Steam's callbacks, and the mod's timer (`PumpGate`) stands in only after 1 s without a game pump.
 - Replaced: `AverageRtt` read per copy per frame (581445d); the mod's own timer pumping callbacks alongside the game's (33ef6a6).
