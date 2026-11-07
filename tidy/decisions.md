@@ -360,6 +360,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: a mix that a creature sets outside a hold is heard in every game, like that of the end of a fight that takes its player over, which the others watch (D87); the creature's own sounds, roars included, are heard in every game.
 - Source: catches-and-grabs.md, replays-hit-the-local-player.md; 1acaac0. USER 11-07 "我朋友被拉上去了但是我会听到我朋友大黄蜂挣扎的声音", "原本应该只在她那边放的", "而且那个被抓之后背景音乐会带一个滤镜（？）总之就是那个也同步到我这里来了".
 
+### D92 What only changes how a creature looks goes with the step of its FSM
+- Now: the actions that show or hide parts, light or stop particles, colour, flash, play the clips of parts and flash or shake the screen (`EntityFsmActions.StepEffectTypes`) go to the other games as one step of the FSM: put together as the state goes into them, each with the parts it works on as it is done and what it says (`Entity.AddToStep`), sent once the state is through going into its actions (hook on `FsmState.ActivateActions`) or before anything else of the creature goes out in the middle (`Entity.FlushStep`). The copy takes the step apart into its own actions of the state and does each one (`Entity.TakeStep`), through the same holds and the same undoing on a state left as any action of the scene host's. A step goes in the data with the rest, in order, also for a state passed through within one update.
+- Replaced: one message per effect action, sent at its own OnEnter (`OnActionEntered` -> `SendEntityData` for every supported type).
+- Old-way signs: an effect type in `_hookedActions`; a new effect type given a message of its own; an effect sent from somewhere other than its step.
+- Exceptions: what moves the creature, rolls, hurts, makes or sends things still goes action by action; sounds still go by themselves (not in the step yet); what a creature grew onto itself is said again action by action (`SendGrowthAgain`). The copy does a step's effects with the mod's own replays of the game's actions, not the game's OnEnter, which marks the step done in the copy's FSM and leaves it entered for when the copy runs that FSM itself.
+- Source: silk-boss-slash-light.md; 33779f7. USER 11-07 "去搞特效，把特效和攻击合起来，不要单独发了，我们老是在为这种分头行动兜底", "怪物一个动作还需要拆散开来发吗", "如果不需要，为什么特效不能直接收到什么动作，就走游戏原本的函数打开特效".
+
 ## C. Rooms, the world and saves
 
 ### D36 A co-op save is a flag, aligned to the host's world at entry
