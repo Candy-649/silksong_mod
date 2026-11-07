@@ -365,7 +365,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Replaced: one message per effect action, sent at its own OnEnter (`OnActionEntered` -> `SendEntityData` for every supported type).
 - Old-way signs: an effect type in `_hookedActions`; a new effect type given a message of its own; an effect sent from somewhere other than its step.
 - Exceptions: what moves the creature, rolls, hurts, makes or sends things still goes action by action; sounds still go by themselves (not in the step yet); what a creature grew onto itself is said again action by action (`SendGrowthAgain`). The copy does a step's effects with the mod's own replays of the game's actions, not the game's OnEnter, which marks the step done in the copy's FSM and leaves it entered for when the copy runs that FSM itself.
-- Source: silk-boss-slash-light.md; 33779f7. USER 11-07 "去搞特效，把特效和攻击合起来，不要单独发了，我们老是在为这种分头行动兜底", "怪物一个动作还需要拆散开来发吗", "如果不需要，为什么特效不能直接收到什么动作，就走游戏原本的函数打开特效".
+- Source: silk-boss-slash-light.md; 33779f7, 268fd39 (the state sent as a step begins). USER 11-07 "去搞特效，把特效和攻击合起来，不要单独发了，我们老是在为这种分头行动兜底", "怪物一个动作还需要拆散开来发吗", "如果不需要，为什么特效不能直接收到什么动作，就走游戏原本的函数打开特效".
 
 ## C. Rooms, the world and saves
 
