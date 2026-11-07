@@ -71,6 +71,15 @@ internal static class RoomAnalyzer {
         return null;
     }
 
+    /// <summary>
+    /// Whether an action is a test or a comparison, whose events tell how it came out.
+    /// </summary>
+    private static bool IsTest(string shortName) {
+        return shortName.Contains("Test", StringComparison.Ordinal) ||
+               shortName.Contains("Compare", StringComparison.Ordinal) ||
+               shortName.EndsWith("IsNull", StringComparison.Ordinal) || shortName == "CheckIsInEditor";
+    }
+
     private static bool IsCombatEvent(string eventName) {
         return eventName.Contains("DAMAGE", StringComparison.Ordinal) ||
                eventName.Contains("STUN", StringComparison.Ordinal) ||
@@ -153,6 +162,7 @@ internal static class RoomAnalyzer {
         public readonly HashSet<string> FightStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<string>> _ownEvents = new(StringComparer.Ordinal);
         private readonly HashSet<string> _subFsmStates = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _stayStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, List<string>> _sentEvents = new(StringComparer.Ordinal);
         private readonly List<(string State, string Event, string To)> _transitions = [];
         private readonly List<(string Event, string To)> _globals = [];
@@ -169,6 +179,7 @@ internal static class RoomAnalyzer {
                 _stateNames.Add(state.Name);
                 var own = new HashSet<string>(StringComparer.Ordinal) { Finished };
                 var sent = new List<string>();
+                var mayStay = false;
                 foreach (var action in state.Structured) {
                     var shortName = action.Name[(action.Name.LastIndexOf('.') + 1)..];
                     var sentEvent = shortName is "SendEventByName" or "SendEventByNameV2"
@@ -202,7 +213,19 @@ internal static class RoomAnalyzer {
                                 own.Add(parameter.Value);
                             }
                         }
+
+                        var events = action.Params.Where(p => p.Type == 23).ToList();
+                        if (IsTest(shortName) && events.Any(p => !string.IsNullOrEmpty(p.Value)) &&
+                            events.Any(p => string.IsNullOrEmpty(p.Value))) {
+                            mayStay = true;
+                        }
                     }
+                }
+
+                // A test that may come out saying nothing leaves the state where it is, unless it goes on once its
+                // actions are done
+                if (mayStay && !state.Transitions.Any(t => Split(t).Event == Finished)) {
+                    _stayStates.Add(state.Name);
                 }
 
                 _ownEvents[state.Name] = own;
@@ -284,7 +307,7 @@ internal static class RoomAnalyzer {
             for (var round = 0; round < MaxSteps; round++) {
                 var added = false;
                 foreach (var state in _stateNames) {
-                    if (inevitable.Contains(state) || !_leading.Contains(state)) {
+                    if (inevitable.Contains(state) || !_leading.Contains(state) || _stayStates.Contains(state)) {
                         continue;
                     }
 
