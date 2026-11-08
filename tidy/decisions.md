@@ -655,7 +655,7 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Now: debug commands made for one test are removed when the test is done.
 - Replaced: the act 3 and dream-entrance commands /0 and /1-/3 (9b63e46, 10-31), removed 95e2f4b (11-01).
 - Old-way signs: chat commands or code paths only those commands reached (the /0 branch in the bench wake fix 0a3c332).
-- Exceptions: lasting commands the user asked for (`/copy`, `/memory`, `/giveup`, `/coopsave off`). In use now, to come out once the user says the two fights are tried: /0-/2 for the fight at the top of the lift and the other fight (`BossRoomCoop.DebugCommands`, `DebugFightCommand`, `BossRoomUpdateKind.DebugCommand` and its server relay, the `SkipsDebugEnd` check in `OnProcessEvent`; 15c0337, 11-08).
+- Exceptions: lasting commands the user asked for (`/copy`, `/delete` (496f9e4, USER 11-08 "能不能加个删存档的功能"), `/memory`, `/giveup`, `/coopsave off`). In use now, to come out once the user says the two fights are tried: /0-/2 for the fight at the top of the lift and the other fight (`BossRoomCoop.DebugCommands`, `DebugFightCommand`, `BossRoomUpdateKind.DebugCommand` and its server relay, the `SkipsDebugEnd` check in `OnProcessEvent`; 15c0337, 11-08).
 - Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332; 15c0337 (USER 11-08 "给我们整一个可以回去debug…的办法").
 
 ### D77 No defensive code
