@@ -655,8 +655,8 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Now: debug commands made for one test are removed when the test is done.
 - Replaced: the act 3 and dream-entrance commands /0 and /1-/3 (9b63e46, 10-31), removed 95e2f4b (11-01).
 - Old-way signs: chat commands or code paths only those commands reached (the /0 branch in the bench wake fix 0a3c332).
-- Exceptions: lasting commands the user asked for (`/copy`, `/memory`, `/giveup`, `/coopsave off`).
-- Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332.
+- Exceptions: lasting commands the user asked for (`/copy`, `/memory`, `/giveup`, `/coopsave off`). In use now, to come out once the user says the two fights are tried: /0-/2 for the fight at the top of the lift and the other fight (`BossRoomCoop.DebugCommands`, `DebugFightCommand`, `BossRoomUpdateKind.DebugCommand` and its server relay, the `SkipsDebugEnd` check in `OnProcessEvent`; 15c0337, 11-08).
+- Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332; 15c0337 (USER 11-08 "给我们整一个可以回去debug…的办法").
 
 ### D77 No defensive code
 - Now: code does what the case needs and no more. No try/catch "just in case" around calls that do not throw, no check for a null or a state that cannot happen there, no second way through for a case nobody has seen. A guard stays only for a state that really comes about: seen in a log, or made by the game's own code. Where a thing needs a fallback, it gets one, at the point that every way through it passes, and that one catches whatever went wrong, whatever the cause - not one fallback per rare case.
@@ -664,3 +664,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: a try/catch that only logs and goes on around game calls that do not throw; `?.`, `!= null` or `TryGetValue` on what the same method or Awake has just set; a log line for what "should never happen"; a fallback branch with no case known that reaches it; several fallbacks for one thing, each for one rare case, where one at the common point would catch them all.
 - Exceptions: what comes over the network (a packet may be cut or come late); objects the game destroys while the mod still holds them (Unity's null); handlers that must not stop the game's own loop (D70).
 - Source: USER 11-01 "还有你那越来越多的防御性编程，我真是没招了", "兜底不代表乱想啊…非要预言一些不可能发生的情况", "一件事情，一个兜底就行了，兜底的意义就是出现意料之外的情况也能兜住。你都快变成一件事情，每个少数情况一个兜底了"; 4d2de23.
+
+### D93 The game's films drop the frames they are late for
+- Now: the mod switches on `CheatManager.OverrideSkipFrameOnDrop` as it loads (`SSMPPlugin.Awake`), which lets the game's own `SkipVideoFrameOnDrop`, true from the start, decide: a film the computer draws slower than it runs drops the frames it is late for and keeps up with its sound; one drawn in time plays as before (7c02d04, 0.4.155).
+- Replaced: the game's own way, where `CinematicSequence.Update` and `CinematicPlayer.StartVideo` set every film never to drop a frame while its sound, a separate AudioSource for most films, ran on from the start in real time: on the user's laptop (integrated graphics, 2520x1680, a film's 30 frames a second asked for by every second vertical blank) the picture fell further and further behind.
+- Old-way signs: code that sets `SkipFrameOnDrop` or `VideoPlayer.skipOnDrop` false, or puts a film's sound back in step with its picture by hand.
+- Exceptions: none known.
+- Source: USER 11-08 "每次只要一进动画，音频就比动画要快很多", "我知道动画的问题和模组无关", "但是我真的很需要解决一下", "音画不同步太难受了"; 7c02d04.
