@@ -132,12 +132,16 @@ OVERRIDES = {
     # gives up their item with the other's, and their house had nothing to show for it
     'ConstructedMaterium': ('shared-world', 'put together at the desk of the shared house, once for both'),
     'ConstructedFarsight': ('shared-world', 'put together at the desk of the shared house, once for both'),
+    # What is installed in the shared house (both copies of its Crawbell Control, state "Install?" and then "Reach
+    # Out", which sets the flag), which is there once for both, as the user decided on 2026-11-08: a player who agreed
+    # in a box gave up their item with the other's, and their house had nothing to show for it
+    'CrawbellInstalled': ('shared-world', 'installed in the shared house, once for both'),
 }
 # What the shared house has, which nothing takes away again: a check keeps it if either save has it
 HOUSE_RECORDS = {
     'BelltownFurnishingDesk', 'BelltownFurnishingFairyLights', 'BelltownFurnishingGramaphone', 'BelltownFurnishingSpa',
     'BelltownHouseColour', 'BelltownFurnishingSpaAvailable', 'BelltownHousePaintComplete', 'ConstructedMaterium',
-    'ConstructedFarsight',
+    'ConstructedFarsight', 'CrawbellInstalled',
 }
 # The wins of arenas that save them in the player data (BattleScene.setPDBoolOnEnd and setExtraPDBoolOnEnd). An arena
 # that one player won counts as won for both, as the user decided on 2026-10-02. The arenas that count as bosses keep
