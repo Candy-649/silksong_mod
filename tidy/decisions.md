@@ -671,3 +671,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Old-way signs: code that sets `SkipFrameOnDrop` or `VideoPlayer.skipOnDrop` false, or puts a film's sound back in step with its picture by hand.
 - Exceptions: none known.
 - Source: USER 11-08 "每次只要一进动画，音频就比动画要快很多", "我知道动画的问题和模组无关", "但是我真的很需要解决一下", "音画不同步太难受了"; 7c02d04.
+
+### D94 The link is opened anew after 10 s, by one side's new link only, with Steam's direct link tried as always
+- Now: once nothing has arrived for 10 s over a link that still counts as connected, the side that hears nothing closes it (`UpdateManager.RenewLinkAfter`) and sends nothing until the other side's next send, which opens the new link, makes it count as connected: at most 5 s on the host, 8 s in a joining game, after which its own next send opens it (`RenewalHoldMs`, `HeldAfterRenewal`; SSMP ee3ae02). Steam's own attempt at a direct link (ICE) stays on.
+- Replaced: opening anew at 15 s, with both sides' next sends each making a new link at once. Steam then took the old direct link apart and made a new one in the same moment, a check of its own failed ('Assert( !IsLocked() )'), and it wrote down the state of the whole game in its folder 'dumps', which stood the game still for 1-2 s with the sound crackling (the user's game 11-08 15:29; the other game 11-01, 11-04, 11-07).
+- Old-way signs: a send right after `CloseSessionWithUser` to the same player; turning Steam's direct link off (`P2P_Transport_ICE_Enable`) to keep the game from standing still.
+- Exceptions: none known.
+- Source: USER 11-08 "10秒呢", "我真的死机了", "但是steam初始化直连会导致游戏卡死这件事本身就不对，steam尝试直连是正常的", "总不能是steam本身有bug，初始化直连就会卡一下"; ee3ae02.
