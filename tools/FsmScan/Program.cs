@@ -210,6 +210,24 @@ internal static class FieldExtensions {
 
         return field == null || field.IsDummy ? null : field;
     }
+
+    /// <summary>
+    /// Whether the action at an index of a state is switched off, by the state's list of which are on: booleans, or
+    /// the bytes that the game keeps it as. Read as booleans alone, it never said any was off, and actions that the
+    /// game never runs counted as run, unlike in SSMP (a boss's test of whether it was met before, 11-09).
+    /// </summary>
+    public static bool IsOffAt(this AssetTypeValueField enabled, int index) {
+        if (enabled == null) {
+            return false;
+        }
+
+        if (enabled.Value?.ValueType == AssetValueType.ByteArray) {
+            var bytes = enabled.AsByteArray;
+            return index < bytes.Length && bytes[index] == 0;
+        }
+
+        return index < enabled.Children.Count && !enabled.Children[index].AsBool;
+    }
 }
 
 /// <summary>
@@ -1011,7 +1029,7 @@ internal static class BundleScanner {
             var actions = new List<string>();
             var off = new List<int>();
             for (var i = 0; names != null && i < names.Children.Count; i++) {
-                if (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool) {
+                if (enabled.IsOffAt(i)) {
                     off.Add(i);
                     continue;
                 }
@@ -1438,7 +1456,7 @@ internal static class ActionParams {
         }
 
         for (var i = 0; i < names.Children.Count && i < starts.Children.Count; i++) {
-            if (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool) {
+            if (enabled.IsOffAt(i)) {
                 continue;
             }
 
@@ -1495,8 +1513,7 @@ internal static class ActionParams {
 
         for (var i = 0; i < names.Children.Count && i < starts.Children.Count; i++) {
             var actionName = names.Children[i].AsString;
-            if (!ActionPattern.IsMatch(actionName) ||
-                (enabled != null && i < enabled.Children.Count && !enabled.Children[i].AsBool)) {
+            if (!ActionPattern.IsMatch(actionName) || enabled.IsOffAt(i)) {
                 continue;
             }
 
