@@ -680,11 +680,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: scene-event-guard.md; b261f18.
 
 ### D71 Temporary debug commands come out once they have served
-- Now: debug commands made for one test are removed when the test is done. While they are in use, they work only with a key after them that only the testing players know, the code holding its SHA-256 and the install notes naming no key, since a version carrying them can go up on the public mod page as 0.4.156 did (8780f8c).
+- Now: debug commands made for one test are removed when the test is done. While they are in use, they work only once the first of them in a run of the game came with a key that only the testing players know, after which they need none until the game is closed; the code holds the key's SHA-256 and the install notes name no key, since a version carrying them can go up on the public mod page as 0.4.156 did (8780f8c, 517c924).
 - Replaced: the act 3 and dream-entrance commands /0 and /1-/3 (9b63e46, 10-31), removed 95e2f4b (11-01).
 - Old-way signs: chat commands or code paths only those commands reached (the /0 branch in the bench wake fix 0a3c332).
 - Exceptions: lasting commands the user asked for (`/copy`, `/delete` (496f9e4, USER 11-08 "能不能加个删存档的功能"), `/memory`, `/giveup`, `/coopsave off`). In use now, to come out once the user says the two fights are tried: /0-/2 for the fight at the top of the lift and the other fight (`BossRoomCoop.DebugCommands`, `DebugFightCommand`, `BossRoomUpdateKind.DebugCommand` and its server relay, the `SkipsDebugEnd` check in `OnProcessEvent`; 15c0337, 11-08).
-- Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332; 15c0337 (USER 11-08 "给我们整一个可以回去debug…的办法"); 8780f8c (USER 11-09 "看起来下次/0还得带一串密钥才行", "我们还是需要/2的").
+- Source: debug-dream-commands.md; 9b63e46, 95e2f4b, 0a3c332; 15c0337 (USER 11-08 "给我们整一个可以回去debug…的办法"); 8780f8c, 517c924 (USER 11-09 "看起来下次/0还得带一串密钥才行", "我们还是需要/2的", "似乎有点要打的太多了（，要不然改成/0后面要加密钥，/1和/2只有本次游戏输入过/0才能用").
 
 ### D77 No defensive code
 - Now: code does what the case needs and no more. No try/catch "just in case" around calls that do not throw, no check for a null or a state that cannot happen there, no second way through for a case nobody has seen. A guard stays only for a state that really comes about: seen in a log, or made by the game's own code. Where a thing needs a fallback, it gets one, at the point that every way through it passes, and that one catches whatever went wrong, whatever the cause - not one fallback per rare case.
