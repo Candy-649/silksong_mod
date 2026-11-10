@@ -115,7 +115,7 @@ put('CrawbellCurrency CrawbellCurrencyCaps CrawbellTimer CrawbellCrawsInside Gro
     'HalfwayDrinksPurchased HalfwayNectarPaid pinGalleriesCompleted PinGalleryWallet tookRestroomRosaries '
     'mosstownAspidBerryCollected bonegraveAspidBerryCollected bonetownAspidBerryCollected '
     'CollectedToolMetal CollectedCommonSpine GotGourmandReward ForgeDaughterSpentToolMetal MementosDeposited MateriumCollected '
-    'BelltownRelicDealerGaveRelic GivenLibrarianRelic MottledChildGivenTool MottledChildNewTool WoodWitchGaveMandrake '
+    'BelltownRelicDealerGaveRelic GivenLibrarianRelic MottledChildGivenTool MottledChildNewTool '
     'mortKeptWeightedAnklet BelltownCouriersBrokenDlgQueued CaravanSpiderTargetScene CaravanSpiderTravelDirection '
     'CaravanSpiderPaidExtraBellhart BoneBottomShellFrag1 fleaGames_juggling_highscore fleaGames_bouncing_highscore '
     'fleaGames_dodging_highscore BelltownCouriersGenericQuests FleasCollectedTargetOrder',
@@ -143,6 +143,9 @@ put('MushroomQuestFound1 MushroomQuestFound2 MushroomQuestFound3 MushroomQuestFo
     'ONLY_ADD', 'OR', 'progress of a wish that is not taken: counts from either player (existing wish rule)')
 put('GourmandGivenStew GourmandGivenNectar GourmandGivenEgg GourmandGivenMeat GourmandGivenCoral', 'HOST', 'take host',
     'items handed in for a wish = wish state; the items themselves stay personal (both pay in co-op)')
+put('WoodWitchGaveMandrake', 'HOST', 'take host',
+    'a story item handed in: the join takes the item away when the host handed it in (story items), so the '
+    'record of the hand-in follows the host with it, which the giver tests (USER 11-10 "对齐了剧情也要对齐")')
 put('shakraAidForumBattle songChevalierQuestReady', 'HOST', 'take host', 'NPC/story state')
 put('gainedCurse bindCutscenePlayed', 'UNSURE', 'take host + fix crest',
     'curse story event changes the hero\'s crest; suggested HOST, and if the result says cursed-and-not-cured set the curse crest, else make sure the client is not left on it')

@@ -384,11 +384,11 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 ## C. Rooms, the world and saves
 
 ### D36 A co-op save is a flag, aligned to the host's world at entry
-- Now: a save is only marked as co-op. It needs at least 2 players, and the joiner's save takes the host's world as it loads. There are no member lists and no pairing. Where the two saves differ, the host's record wins.
+- Now: a save is only marked as co-op. It needs at least 2 players, and the joiner's save takes the host's world as it loads. There are no member lists and no pairing. Where the two saves differ, the host's record wins. A story item the host used up is taken from the joiner, and the field the giver tests to know it was handed in goes with it: it takes the host's value (`WoodWitchGaveMandrake`, HOST; a census of every story item the join takes found no other such field).
 - Replaced: the member-bound shared save with three-step pairing and a pairing key (coop-save-design.md, 9e79d96), then auto pairing (82b0ab3, 0.4.90, never published), both replaced by 63ccd82 (0.4.91). The marker kept the first member's key and name in `partnerKey` / `partnerName` for older builds, with `TakeOverPartner` and `pairedUtc`, until 5ad5f27 (0.4.150).
-- Old-way signs: member lists kept beyond a session, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing`, `partnerKey`, `partnerName`, `TakeOverPartner`), tools that pair saves. The marker's `Members` is the roster of one session (`StartRoster`), not a pairing.
+- Old-way signs: member lists kept beyond a session, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing`, `partnerKey`, `partnerName`, `TakeOverPartner`), tools that pair saves. The marker's `Members` is the roster of one session (`StartRoster`), not a pairing. A story item of `coop-host-sync.json` (`story: true`) whose hand-in field is PERSONAL or in no field group.
 - Exceptions: `/coopsave off` makes a save normal again.
-- Source: host-aligned-coop-save.md, auto-pairing.md, coop-save-design.md; 63ccd82, 82b0ab3. USER 10-11 "不要给存档限定成员，只限定这个存档是用来联机的，至少有两个人才能玩".
+- Source: host-aligned-coop-save.md, auto-pairing.md, coop-save-design.md; 63ccd82, 82b0ab3, SSMP a6b78e9. USER 10-11 "不要给存档限定成员，只限定这个存档是用来联机的，至少有两个人才能玩"; USER 11-10 "对齐本身没问题，重点是对齐了剧情也要对齐", "所以不需要把对齐规则撤了".
 
 ### D37 With more players, "both" means "all"
 - Now: every two-player rule applies to all players of a session: everyone arrives, everyone agrees, everyone is down.
