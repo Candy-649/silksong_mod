@@ -264,10 +264,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 
 ### D31 Only Entity.UpdateIsActive switches a copy's body on or off
 - Now: whether a copy is there follows what the scene host says of the whole creature, through `Entity.UpdateIsActive`. The game that takes the room over says again whether each creature is on (`Entity.MakeHost`); the room sent again for the server after a gap, which said it too (`SendStateAgain`), went with the room-state correction (5871c99).
-- Replaced: components that set the copy's root from a child's `activeSelf` (`DamageHeroComponent`, until 367a2ac).
-- Old-way signs: `gameObject.SetActive` on a copy root outside `UpdateIsActive`.
+- Replaced: components that set the copy's root from a child's `activeSelf` (`DamageHeroComponent`, until 367a2ac); a walk-in's copy of an Aknid, the kind that may carry what is each player's own, told nothing of what the server kept of it (`isPersonal` in `Entity.TakeIn`, aaad33c 0.4.18, until fe007a6, 0.4.163): left off as every copy starts, it was not seen while the scene host's creature lived, and a game that took the room over switched the room's own creature off with it.
+- Old-way signs: `gameObject.SetActive` on a copy root outside `UpdateIsActive`; a kind of creature whose kept state a walk-in does not take in.
 - Exceptions: none known.
-- Source: walk-in-copies-under-off-group.md, server-kept-entity-active.md; 367a2ac, 550e323.
+- Source: walk-in-copies-under-off-group.md, server-kept-entity-active.md, entity-client-copy-facts.md; 367a2ac, 550e323, fe007a6. USER 11-12 "我现在坐的这个座椅旁边有个虫子，我看不到，只有我朋友看得到，我只看到它被打死的尸体".
 
 ### D82 The game expected to run a room keeps its creatures running
 - Now: while a room settles who runs it, the game expected to run it (`EntityManager.RunsTheRoom`: the scene host, or before the server has said, the game that came into the room with nobody else in it) keeps its creatures running (`EntityProcessor.KeepsRunning` into `Entity(keepsRunning)`): no switch-off in the constructor, no `HideTheRoomsOwnCopy`, and no switch-on with a position save in `InitializeHost`.
@@ -284,8 +284,8 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Source: clip-resend-double-play.md, creature-facing-delivery.md; a31307b. USER 10-19 chose A.
 
 ### D33 A walk-in still replays the deaths of the room's creatures
-- Now: a player who walks into a room where the partner stayed sees each dead creature die again on its copy, money drop included. A room that emptied reloads with no corpses. A game that takes a room over keeps the deaths (`TakeOverDead`, b84c780).
-- Replaced: nothing. The plan to replace the replay with `SetIsDead`, a Corpse message and stand-ins was dropped before any code was written.
+- Now: a player who walks into a room where the partner stayed sees each dead creature die again on its copy, money drop included. A room that emptied reloads with no corpses. A game that takes a room over keeps the deaths (`TakeOverDead`, b84c780). Every kind of creature, the Aknid too since fe007a6 (0.4.163).
+- Replaced: nothing. The plan to replace the replay with `SetIsDead`, a Corpse message and stand-ins was dropped before any code was written. The Aknid's walk-in took in no death (aaad33c until fe007a6).
 - Old-way signs: none. Do not remove the replay in `HealthManagerComponent.UpdateHealth` (alreadyInSceneUpdate && _toldDead).
 - Exceptions: this is the kept exception itself.
 - Source: walk-in-death-replay-kept.md, creature-death-records.md; d80c45c, b84c780. USER 10-12 "既然空过，两边都没有尸体是对的的话，那不如保持现状？".
