@@ -1,5 +1,60 @@
 # Code tidy log
 
+## 2026-11-12, cd45757..933ed32
+
+Third run (register D01-D105). At the user's word ("只整上次之后的有什么用，上次理过也没把这个问题揪出来啊") the readers searched the whole code, not only the commits since cd45757, and followed every hidden backstop (an else, an expiry, a "never came" branch) to what still reaches it. Four readers sent 48 findings. Merged, these come to 40 items: 15 picked (7 quiet, 8 visible), 11 later, 9 big, 2 for the user, 3 exceptions written into the register (D14 with a pointer from D45, D53, D74), 0 rejected.
+
+Picked:
+- T1 Delete the upstream code nothing reaches: SSMP.Fsm.Rotate, FollowObject, HazardRespawnComponent.ClimbRespawnOffset, the Concurrency folder, CompoundCondition, four Util methods and the PlayerDeath receive case
+- T2 Delete the unreferenced upstream mod menu, its setting attribute and 29 uses, SettingsEntryInterface, the radio button box and LoginResponse
+- T3 Take the echo-wait checks out of the catch paths, which can no longer wait for an echo (D35)
+- T4 Stale words: catches stopping because the scene host did not take them (D35), the rescue wait of 45 s (D12), the relay renewal doc, the CurrentSave warning on every join
+- T5 One StableHash for the eight FNV-1a copies, bit-identical at each site
+- T6 SkinManager's sheet names from one SlashPictures.SheetsOf (D05)
+- T7 Hornet's skins last and the Customizer folders in one place (D05)
+- T8 visible: four chat lines - the rescue line for any number down (D37), the save-key line without the version (D56), /addon list in Chinese (D62), /help in plain gold (D100)
+- T9 visible: the map position said again while still (D03)
+- T10 visible: a boss's last blow shown on the scene host's figure by the data's sender, not "the one other player" (D37, D17)
+- T11 visible: the scene host's FSM numbers kept off a combo the copy plays by itself (D102)
+- T12 visible: the copy of the partner's pale nails fires on the owner's word, targeted or not, with one fallback (D09)
+- T13 visible: a catch played here when nobody can be sent it, not let go (D35, D14)
+- T14 visible: whatever else the copy runs here gives way to a catch of the local player, in PlayHere, and nothing is sent of one it can't play (D35, D98, D14)
+- T15 visible: a catch judged from where the copy shows the creature, not after taking in what it is behind with (D102, D14; a D80 exception)
+
+Left for later:
+- A second input on the FSM that plays a catch (a wound by the player's own tool) resets the catch; check first in the FSMs whether any catch state takes a wound, D14/D77 (SSMP/Game/Client/Entity/Entity.RunHere.cs, Entity.Struck.cs, Save/CoopHits.cs)
+- Wakes, signs, tools and struck parts that lead the copy into a choice of its next move only sent, as wounds are since c990e43, D14/D25 (Entity/Entity.Struck.cs, Save/CoopHits.cs, Save/CoopHits.Signals.cs)
+- One ScenePath.Under/FindUnder for the three "path of a part" copies; shown parts go by numbered names as told parts do (Save/CoopSave.ShownParts.cs, Save/ToldParts.cs, GamePatcher.Senders.cs, ScenePath.cs)
+- RollAlike of the flock flyers onto ThrownThings.Seed/Rolling, D27 (Entity/EntityManager.cs, Save/ThrownThings.cs)
+- Lift, carriage and lava copies aged by both sides' RTT, one MessageAge helper, a field in three wire layouts, D49 (Save/CoopSave.LiftReplay.cs, CoopSave.Carriage.cs, CoopSave.LavaChase.cs, CoopSave.RoomClocks.cs)
+- One HeldHero for the three ControlVersion holds and one taken-by-game test, D87 (MinigameCoop.Watching.cs, Save/CoopSave.WishConfirm.cs, Save/CoopSave.Deliveries.cs, BossRoomCoop.Endings.cs)
+- One rule for who is on the creatures' list (film, cocoon, spawn), visible for a player stood up during their film, D42/D19 (PlayerTargetRegistry.cs, BossRoomCoop.Cutscenes.cs, Save/CoopSave.Rescue.cs, PlayerManager.cs)
+- One FsmUtilExt.EventFieldsOf for four event-field scans; check the base-class walk finds nothing new, D69 (BossRoomCoop.Events.cs, Save/CoopSave.PacedMachines.cs, GamePatcher.NpcZones.cs, Save/ToldParts.cs)
+- The pause menu onto the backpack's _keepTimeRunning, D68; first find which pause call stops time (Game/Client/PauseManager.cs, ClientManager.cs)
+- One boss test for the health bars and the boss rooms, D30 (Ui/EnemyHealthBars.cs, BossRoomCoop.cs)
+- The inner try/catch blocks of the send loop under its one catch, D77; check what a Steam call there throws (Networking/UpdateManager.cs)
+- big: a talk's end judged as a late input is (taken where the host's FSM left its state by its own ways), and a refused talk frees the talker at once with an answer, not after 15 s, D14/D53, 2-3 commits (Entity/Entity.TalkHere.cs, Entity.HandOver.cs, Save/CoopHits.cs)
+- big: the partner's pins and tacks under ToolCopies, with the hero's touch on a tack copy out, then the four effect classes, ToolPlacements and the tink bridge out, D08/D09, 3 commits (Animation/Effects/Tools/*, AnimationManager.cs, Save/CoopHits.cs)
+- big: HeroCopies.Silence for the five hand-made copies plus the harpoon needle and ring thread, then HeroCopies.Make with a prepare step, D07/D05, 2 commits (HeroCopies.cs, HeroChildEffects.cs, HeroHarpoon.cs, HeroDust.cs, HeroRoomFigure.cs, Tools/ToolCopies.cs)
+- big: one SaidAgain helper for the seven sub-effect resends, D02, 2 commits plus a talk with the user (HeroHit.cs, HeroHarpoon.cs, HarpoonRingLook.cs, HeroChildParticles.cs, HeroDust.cs, HeroHidden.cs, HeroRoomFigure.cs)
+- big: one ordered hook on Fsm.ProcessEvent for the eight detours, D69, 4-6 commits (Ui/EnemyHealthBars.cs, ArenaCoop.BossArenas.cs, BindCoop.cs, BossRoomCoop.cs, HudWatch.cs, Save/CoopHits.Signals.cs, Save/CoopSave.cs, Save/CoopSave.FsmLift.cs, Hooks/EventHooks.cs)
+- big: delete SSMPServer, D105, 1-2 commits, about 1200 lines (SSMPServer/, SSMP.sln, .github/workflows/build.yml, SSMP/SSMP.csproj)
+- big: full synchronisation as the only mode, about 55 branches, 2-3 commits after SSMPServer (ClientManager.cs, ServerManager.cs, ModServerManager.cs, ServerInfo.cs, ArenaCoop*.cs, BossRoomCoop*.cs)
+- big: delete the Steam P2P transport, D57, one commit of about 1000 lines (Networking/Transport/SteamP2P/*, ClientManager.cs, ModServerManager.cs, TransportType.cs)
+- big: delete the upstream save mirror, 1-2 commits after SSMPServer (Save/SaveManager.cs, SaveDataMapping.cs, Server/Save/*, CopySaveCommand.cs, EncodeUtil.cs, SaveUpdate.cs, ServerInfo.cs, ClientManager.cs, ServerManager.cs, ClientUpdateManager.cs)
+
+For the user:
+- The room state taken in after a 3 s gap, from before reliable data was resent in order: delete it, or keep it (D80, D77; large if deleted)
+- The scene host switching its creature off while it holds the client's player: hold the switch-off until the catch is through, or let it end the catch (D102 against D14's 11-12 sentence)
+
+Rejected: 0.
+
+Register wording to look at (not changed in this run): T15 adds to D80's exceptions that a catch of the local player does not take in first what the copy is behind with; T13 and T14 change no rule's words, but D35's "Now" could say a catch also plays when nobody can be sent it; D02's exception still says it was not recorded whether the uncounted path is on purpose.
+
+Commits: T1 a47b11d, T2 f96da01, T3 725676e, T4 6f4fad1 (its last point, the CurrentSave warning, left out: no log line is taken out), T5 e9e0cd0, T6 e31f95d, T7 5bbee0f, T8 a8e31c3, T9 198af8e, T10 a7e3df4, T11 0b378c5, T12 8c3b790, T13 d22cae3, T14 67c0058, T15 f89dc61.
+
+Review (one round): one high finding - a catch played with nobody to send it to (d22cae3) held the player for good once this game took the room over, as the room's own creature went on from the scene host's last state, which never had the catch: fixed in cbeab67, the takeover goes on with a catch the copy plays by itself from the copy's state (D35 now says so). Three low: the give-way of 67c0058 came before looking whether the catching FSM takes the catch, and ended a move without catching it up, fixed in 7b21fdf; the reading of a catch's told values off a touch was dead, deleted in 040d349; the relay renewal's words named ReliableNumbering as UpdateManager's, fixed in 040d349. CHANGES accbbfe; checklist t533-t541.
+
 ## 2026-11-08, f207047..9dda11a
 
 Second run (157 commits, register D01-D97). Four readers sent 53 findings. Merged, these come to 46 items: 10 picked (6 quiet, 4 visible), 19 later, 9 big, 1 for the user, 5 exceptions written into the register (D09, D40, D42, D58, D77), 2 rejected.

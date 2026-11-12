@@ -17,6 +17,9 @@ const A = args || {}
 const SINCE = A.since
 const DATE = A.date
 const FIRST = A.first === true
+// whole: every decision over the whole code at once, not those changed since the last tidy first (USER 11-12
+// "只整上次之后的有什么用，上次理过也没把这个问题揪出来啊")
+const WHOLE = A.whole === true
 const MAX_APPLY = typeof A.maxApply === 'number' ? A.maxApply : 10
 const CHUNK = 5
 if (!SINCE || !DATE) {
@@ -301,7 +304,7 @@ function decisionsPrompt() {
 
 function findPrompt(g, decisions) {
   const mine = decisions.changed.filter(d => d.group === g.key).map(d => d.id)
-  const focus = FIRST || !mine.length
+  const focus = FIRST || WHOLE || !mine.length
     ? `every decision of group ${g.key}`
     : `the decisions of group ${g.key} that are new or changed since the last tidy (${mine.join(', ')}) first, then the rest of group ${g.key}`
   return [
@@ -310,7 +313,7 @@ function findPrompt(g, decisions) {
     `You read for group ${g.key}: ${g.name}.`,
     `Read ${REGISTER} in full (code can break a decision of any group), and ${LOG} if it exists: the 'Left for later' lists of earlier runs are candidates to look at again.`,
     'Look for these:',
-    `1. Old ways left in the code. For ${focus}: search the whole code (SSMP/, SSMPServer/, ProtocolCheck/) for code that still does what the decision replaced. Use its old-way signs, and think of the other forms the old way can take. Skip what the entry lists as an exception. For each place, say whether it is a leftover (it should follow the decision in force, or go) or a new exception (it keeps the old way for a reason the register should record).`,
+    `1. Old ways left in the code. For ${focus}: search the whole code (SSMP/, SSMPServer/, ProtocolCheck/) for code that still does what the decision replaced. Use its old-way signs, and think of the other forms the old way can take. Skip what the entry lists as an exception. For each place, say whether it is a leftover (it should follow the decision in force, or go) or a new exception (it keeps the old way for a reason the register should record). Hunt hardest for the hidden backstops, which the user asked for by name (11-12: "你还给我整出来房主没接就换人的旧实现。是，这种比较隐形而且可能有地方在兜底的是比较难找，但是你真得收拾一下了"): code that runs only when something else did not come or did not go through - an answer that never came, a refusal (NotTaken), an expiry or a timeout, an otherwise branch, a catch-all - and there quietly does what a replaced decision said: let go, follow the scene host again, take back what the local game already played, wait for the scene host, choose for it. Follow each such branch to what still reaches it now that the decision in force has changed what comes in. Judge each one against the decisions in force, not only against what an entry lists as replaced: one that gives the scene host's answer or its silence the last word over what the local game already did to its own player, that chooses in a copy for a creature the scene host runs, or that leaves the two games showing different things breaks the decisions in force even where no entry names it as an old way, and is an old-way finding with the decision it breaks.`,
     `2. New code written the old way or written twice. The code changed since the last tidy (${SINCE}) in these files and folders: ${g.folders.join(', ')}. See git -C ${REPO} log --stat ${SINCE}..HEAD and git -C ${REPO} diff ${SINCE}..HEAD -- <paths>. Check it against every decision in the register, not only those of group ${g.key}, and look for a rule, a table or a helper that already existed somewhere else and was written again (search the whole code for the older one).`,
     '3. Plain leftovers in those files: code that nothing reaches any more, and comments, docs or log text that say what the code no longer does. Before calling something unreached, search for its name in strings, nameof, reflection, Harmony patches named by strings, PlayMaker action and FSM names, and IL hooks. SSMP/Api is a public API for addons: leave it. Enum values and packet IDs that fix the numbers of later ones stay.',
     'For each finding give:',
@@ -323,7 +326,7 @@ function findPrompt(g, decisions) {
     '- playNote: if playChanges, what changes (for example "the effect comes from the clip instead of a message: the same look, it can start a frame apart");',
     '- why: the evidence: what reaches the code, what the copies do differently, how the decision in force covers this case;',
     '- size: small (one commit, under about 150 lines touched) or large (several commits, or a new mechanism).',
-    'Prefer real leftovers to cosmetics: no renames, formatting, reordering, or rewrites of code that is written once and follows the decisions. At most 20 findings: if there are more, keep those that take out the most old-way code, and say in notes what you left out. In notes, also say briefly what you checked and found clean.',
+    `Prefer real leftovers to cosmetics: no renames, formatting, reordering, or rewrites of code that is written once and follows the decisions. At most ${WHOLE ? 30 : 20} findings: if there are more, keep those that take out the most old-way code, and say in notes what you left out. In notes, also say briefly what you checked and found clean.`,
     'Read only: no edits, no builds, nothing that changes either repository.',
   ].join('\n')
 }
