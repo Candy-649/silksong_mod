@@ -406,8 +406,8 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 
 ### D36 A co-op save is a flag, aligned to the host's world at entry
 - Now: a save is only marked as co-op. It needs at least 2 players, and the joiner's save takes the host's world as it loads. There are no member lists and no pairing. Where the two saves differ, the host's record wins. A story item the host used up is taken from the joiner, and the field the giver tests to know it was handed in goes with it: it takes the host's value (`WoodWitchGaveMandrake`, HOST; a census of every story item the join takes found no other such field).
-- Replaced: the member-bound shared save with three-step pairing and a pairing key (coop-save-design.md, 9e79d96), then auto pairing (82b0ab3, 0.4.90, never published), both replaced by 63ccd82 (0.4.91). The marker kept the first member's key and name in `partnerKey` / `partnerName` for older builds, with `TakeOverPartner` and `pairedUtc`, until 5ad5f27 (0.4.150).
-- Old-way signs: member lists kept beyond a session, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing`, `partnerKey`, `partnerName`, `TakeOverPartner`), tools that pair saves. The marker's `Members` is the roster of one session (`StartRoster`), not a pairing. A story item of `coop-host-sync.json` (`story: true`) whose hand-in field is PERSONAL or in no field group.
+- Replaced: the member-bound shared save with three-step pairing and a pairing key (coop-save-design.md, 9e79d96), then auto pairing (82b0ab3, 0.4.90, never published), both replaced by 63ccd82 (0.4.91). The marker kept the first member's key and name in `partnerKey` / `partnerName` for older builds, with `TakeOverPartner` and `pairedUtc`, until 5ad5f27 (0.4.150). Upstream's mirror of the whole save between players (`SaveManager`, `SaveUpdate`, the server's save `ServerSaveData` / `ModSaveFile`, the server command `CopySaveCommand`), never switched on here and against what the co-op save keeps each player's own (until b9e6c8c, 0.4.163; the two SaveUpdate packet IDs stay reserved).
+- Old-way signs: member lists kept beyond a session, "all members of the save", pairing words and keys (`CoopPair`, `RemoveLocalPairing`, `partnerKey`, `partnerName`, `TakeOverPartner`), tools that pair saves. The marker's `Members` is the roster of one session (`StartRoster`), not a pairing. A story item of `coop-host-sync.json` (`story: true`) whose hand-in field is PERSONAL or in no field group. A save sent to the server or the other game field by field (`SaveManager`, `SaveUpdate`).
 - Exceptions: `/coopsave off` makes a save normal again.
 - Source: host-aligned-coop-save.md, auto-pairing.md, coop-save-design.md; 63ccd82, 82b0ab3, SSMP a6b78e9. USER 10-11 "不要给存档限定成员，只限定这个存档是用来联机的，至少有两个人才能玩"; USER 11-10 "对齐本身没问题，重点是对齐了剧情也要对齐", "所以不需要把对齐规则撤了".
 
@@ -583,10 +583,10 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 
 ### D57 The Steam tab goes over Valve's relay network
 - Now: Steam connections use `SteamNetworkingMessages` over the relay (`Networking/Transport/SteamRelay/`). On the relay, fragmentation is unreachable, because `MaxPacketSize` is the transport's own. The server reassembles each client's packets in its own buffer.
-- Replaced: the legacy Steam P2P transport and MMS hole punching for the Steam tab (1a47ee1); headerless 1200-byte pieces reassembled by arrival order (b4d9347); one shared leftover buffer for all players (68a3f2c).
-- Old-way signs: hardcoded 1200-byte packet sizes; shared reassembly state across clients.
-- Exceptions: UDP, hole punch and Steam P2P keep 1200 and SSMP's own resending (`RequiresReliability`). `GetOrAddClient` still revives an unknown Steam ID on purpose.
-- Source: steam-relay-transport.md, packet-fragmentation-seam.md, ssmp-shared-reassembly-bug.md; 1a47ee1, b4d9347, 68a3f2c.
+- Replaced: the legacy Steam P2P transport and MMS hole punching for the Steam tab (1a47ee1), and the P2P transport's code with `TransportType.Steam`, which nothing could choose after that (until 8067f39, 0.4.163); headerless 1200-byte pieces reassembled by arrival order (b4d9347); one shared leftover buffer for all players (68a3f2c).
+- Old-way signs: hardcoded 1200-byte packet sizes; shared reassembly state across clients; `SteamP2P`, `TransportType.Steam`.
+- Exceptions: UDP and hole punch keep 1200 and SSMP's own resending (`RequiresReliability`). `GetOrAddClient` still revives an unknown Steam ID on purpose.
+- Source: steam-relay-transport.md, packet-fragmentation-seam.md, ssmp-shared-reassembly-bug.md; 1a47ee1, b4d9347, 68a3f2c, 8067f39.
 
 ### D58 A link ends only when the transport and the silence both say so
 - Now: before dropping a quiet connection, the game asks whether the transport still has the session (`_transportSessionUp`). A host that Steam says left the lobby ends the game only after 3 s with nothing from the host. A closed session is not counted as leaving. Once the other side has accepted it, a quiet link is kept for a minute (`UpdateManager.ReconnectCeiling` 60 s; before acceptance `ConnectionTimeoutCeiling` 30 s), and the chat on both screens says that it is reconnecting (2ba2acb). That it is back, the joiner's chat says ("和房主重新连上了"), and the host's only with D97's "X 恢复了（卡了 N 秒）" (cf06158). When the link is opened anew is D94.
@@ -749,9 +749,9 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: none known.
 - Source: untested-checklist.md; aad949b. USER 11-10 "安装说明里到底为什么要记这些（", "只留安装吧（".
 
-### D105 A session is served only by the game that hosts it; the standalone server goes (decided, not built)
-- Now: the host's game runs the server of a session (`ModServerManager`); the console server of upstream SSMP is deleted, to be done as work of its own.
-- Replaced: upstream's dedicated console server (`SSMPServer/`: `ConsoleServerManager`, `ConsoleSettings`, `Launcher`), its project in SSMP.sln and its artifacts in `.github/workflows/build.yml`, which no session of the two players uses.
-- Old-way signs: the `SSMPServer/` project and its build steps; code in the shared server kept only for a server with no game of its own (console commands, console settings or save files).
+### D105 A session is served only by the game that hosts it; the standalone server goes
+- Now: the host's game runs the server of a session (`ModServerManager`), always with the full synchronisation of creatures, rooms and arenas, which is no setting any more. The console server of upstream SSMP was deleted with what only it used in the shared code (92d29a6, b9e6c8c).
+- Replaced: upstream's dedicated console server (`SSMPServer/`: `ConsoleServerManager`, `ConsoleSettings`, `Launcher`), its project in SSMP.sln and its artifacts in `.github/workflows/build.yml`, which no session of the two players uses, with `ColorCodeParser.ParseToAnsi` and `StripColorCodes` (until 92d29a6, 0.4.163); the `FullSynchronisation` setting, true since 09-16 with no way to turn it off, its bool in `ServerInfo` and about 40 branches on it (until 85b33da, 0.4.163).
+- Old-way signs: the `SSMPServer/` project and its build steps; code in the shared server kept only for a server with no game of its own (console commands, console settings or save files); a branch on full synchronisation.
 - Exceptions: none known.
-- Source: code-tidy-workflow.md (USER 11-01, answering the first tidy: SSMPServer "DELETE", to be its own work); log.md of 2026-11-08 (left for later, about 1200 lines, and noted as having no entry).
+- Source: code-tidy-workflow.md (USER 11-01, answering the first tidy: SSMPServer "DELETE", to be its own work); log.md of 2026-11-08 (left for later, about 1200 lines, and noted as having no entry); built 92d29a6 and 85b33da in the tidy of 2026-11-12.
