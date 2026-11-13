@@ -79,11 +79,10 @@ Check(pieces is >= 0 and <= 18 && Int(mergedData, "silkSpoolParts") is 0 or 1, $
 Check(pieces >= piecesBefore, $"spool pieces went down from {piecesBefore} to {pieces}");
 
 // What stays the joining player's
-foreach (var name in new[] { "geo", "ShellShards", "playTime", "CurrentCrestID", "HeroCorpseScene", "nailUpgrades" }) {
-    if (name == "CurrentCrestID") {
-        continue;
-    }
-
+foreach (var name in new[] {
+             "geo", "ShellShards", "playTime", "CurrentCrestID", "PreviousCrestID", "gainedCurse",
+             "BelltownDoctorCuredCurse", "HeroCorpseScene", "nailUpgrades"
+         }) {
     Check(JToken.DeepEquals(mergedData[name], clientData[name]), $"{name} isn't the joining player's");
 }
 

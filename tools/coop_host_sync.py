@@ -62,7 +62,6 @@ def value(lines, key):
 FIELD_MERGES = {
     'take host': 'host',
     'special': 'host',  # the act flags go together, both from the host
-    'take host + fix crest': 'host',  # SSMP puts the hero on the right crest afterwards
     'OR': 'or',
     'per-source': 'or',  # flags of spool sources, which go with the spools
     'max': 'max',

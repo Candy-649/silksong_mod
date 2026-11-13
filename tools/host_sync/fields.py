@@ -147,8 +147,11 @@ put('WoodWitchGaveMandrake', 'HOST', 'take host',
     'a story item handed in: the join takes the item away when the host handed it in (story items), so the '
     'record of the hand-in follows the host with it, which the giver tests (USER 11-10 "对齐了剧情也要对齐")')
 put('shakraAidForumBattle songChevalierQuestReady', 'HOST', 'take host', 'NPC/story state')
-put('gainedCurse bindCutscenePlayed', 'UNSURE', 'take host + fix crest',
-    'curse story event changes the hero\'s crest; suggested HOST, and if the result says cursed-and-not-cured set the curse crest, else make sure the client is not left on it')
+put('gainedCurse bindCutscenePlayed BelltownDoctorCuredCurse', 'PERSONAL', 'keep client',
+    'the curse of the player\'s own hero: the curse sequence, the flag of the cutscene that it clears and sets '
+    'again, and the cure. The wishes of the story keep the players in step, and the join changes neither the '
+    'curse nor the crest they wear '
+    '(USER 11-13 "这个存档同步，本身就不应该同步纹章", "它看的是错误的状态", "畸芽其实到几个祈愿就结束了")')
 put('SatAtBenchAfterAbyssEscape fullyEnteredVerdania gotPastDockSpearThrower enteredCoral_10 enteredSong_19 enteredSong_01 '
     'enteredSong_02 enteredSong_13 enteredSong_17 visitedBoneEast14b greymoor_10_entered visitedHalfway enteredGreymoor05 '
     'previouslyVisitedGreymoor_05 visitedShellwood_16 visitedShadow03 visitedCoralBellshrine visitedUpperSlab enteredHang_08',

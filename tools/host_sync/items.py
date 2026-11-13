@@ -239,7 +239,8 @@ CREST = {
     'Reaper': ('ONLY_ADD', 'crest memory (completedMemory_reaper)'), 'Wanderer': ('ONLY_ADD', 'crest memory'),
     'Warrior': ('ONLY_ADD', 'crest memory (beast)'), 'Witch': ('ONLY_ADD', 'crest memory / curse cure'),
     'Toolmaster': ('ONLY_ADD', 'crest memory'), 'Spell': ('ONLY_ADD', 'crest memory (shaman)'),
-    'Cursed': ('UNSURE', 'hidden crest forced by the curse story event; follow gainedCurse/BelltownDoctorCuredCurse, never only-add on its own'),
+    'Cursed': ('PERSONAL', 'hidden crest a player wears from the curse until the cure; the join never changes the '
+               'crest a player wears (USER 11-13 "这个存档同步，本身就不应该同步纹章", "它看的是错误的状态", "畸芽其实到几个祈愿就结束了")'),
     'Cloakless': ('SESSION', 'hidden crest used while the prison took the clothes; follows the prison capture state'),
 }
 for _, name, lines in blocks(os.path.join(DUMPS, 'ToolCrest.txt')):

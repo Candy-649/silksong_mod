@@ -70,6 +70,10 @@ OVERRIDES = {
     # way its travel scene scrolls (CaravanSpiderTravelDirectionResponder). Decided 2026-10-06
     'CaravanSpiderTargetScene': ('personal-hero', 'where the ride this player bought goes; nothing reads it'),
     'CaravanSpiderTravelDirection': ('personal-hero', 'which way the travel scene of the ride this player bought scrolls'),
+    # The cure of the curse of this player's own hero, a mark that the story clears again: shared, the partner's
+    # story clearing it took it from this save too
+    # (USER 11-13 "这个存档同步，本身就不应该同步纹章", "它看的是错误的状态", "畸芽其实到几个祈愿就结束了")
+    'BelltownDoctorCuredCurse': ('personal-hero', 'this player\'s hero was cured of the curse'),
     # Decided 2026-09-16 from the readers, under rules the user already set: a world purchase, a change of the
     # world and where a character is are shared. None of these were carried by a world object either, so without
     # this they reached the partner through nothing at all
@@ -110,7 +114,6 @@ OVERRIDES = {
     'gillyQueueMovingOn': ('shared-world', 'a character moved on'),
     'boneBottomFuneralComplete': ('shared-world', 'a scene of the world happened, read by nine components'),
     'BonebottomBellwayPilgrimState': ('shared-world', 'the state of a character at a station'),
-    'BelltownDoctorCuredCurse': ('shared-world', 'a character was cured'),
     'CaravanLechSaved': ('shared-world', 'a character was saved, read by the character and the scene'),
     'MetTroupeHunterWild': ('shared-world', 'a character was met, read by nine of its own FSMs'),
     'fleaGames_juggling_played': ('shared-world', 'a character remembers the game was played'),
