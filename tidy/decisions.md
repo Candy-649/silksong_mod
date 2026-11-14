@@ -183,18 +183,18 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: a thing with no health that sends creatures out of a pool at the players in its ranges gives each player a run of their own (D88); a player in a film of the game, or still arriving in a room, is off the list until out of it, and is put back then unless they lie in a cocoon (D42, b6113db).
 - Source: enemy-target-randomness.md; d321123, 8ae85fd. USER 10-15 "怪物的锁敌其实可以带一点随机性"; USER 10-23 "就不能所有怪都统一成一版吗".
 
-### D107 A lantern summons at its own rate while any player is in its range; each fireball picks its own player (decided, not built)
-- Now (decided, not built): the room lanterns that summon fireballs ('Wisp Flame Lantern') summon as long as any player is in their range, at the rate the game gives one lantern, however many players there are; each fireball picks the player it goes after by itself, by the one rule for creatures (D19), and every game shows the same fireballs: summoned at the same moment with the same launch, going after the same player, matched for strikes and explosions.
-- Replaced: each game's lantern summoning its own fireballs, which went after that game's own player alone and were seen in that game only ("[Attacks] Only in this game ...: spawned Wisp Fireball").
-- Old-way signs: a lantern fireball in one game only; a lantern fireball going after the local player in every game.
-- Exceptions: fireballs that a creature throws (the effigy's, the summoning bug's) take the creature's target (D20) and are already in every game. Mine, not the user's: D19 as how a fireball picks, and the scene host's game deciding it.
-- Source: USER 11-14 "那个火灯释放的火焰是同步的吗？", then (offered A: a share per player, overlap shares one with a roll, recommended; B: one target at a time by D19) "灯只要有大黄蜂进范围就放火球，按照它的频率放火球，火球自己索大黄蜂".
+### D107 Every fireball that chases a player picks its own; a lantern summons at its own rate while any player is in its range (decided, not built)
+- Now (decided, not built): a fireball that goes after a player by itself (it follows them about and then rushes at them: the 'Wisp Fireball' that the room lanterns, the effigy and the summoning bug put out) picks the player it goes after by itself, by the one rule for creatures (D19), whoever put it out. The room lanterns ('Wisp Flame Lantern') summon as long as any player is in their range, at the rate the game gives one lantern, however many players there are. Every game shows the same fireballs: put out at the same moment with the same launch, going after the same player, matched for strikes and explosions. A shot that only flies the way it was sent and chases nobody keeps the aim of what sent it (D20).
+- Replaced: each game's lantern summoning its own fireballs, which went after that game's own player alone and were seen in that game only ("[Attacks] Only in this game ...: spawned Wisp Fireball"); the fireballs of a creature taking the creature's target (D20), so that two kinds of fireball picked their players two ways.
+- Old-way signs: a lantern fireball in one game only; a lantern fireball going after the local player in every game; a chasing fireball pointed at the target of the creature that put it out.
+- Exceptions: shots that do not chase (the effigy's straight fireballs) go by D20. Mine, not the user's: D19 as how a fireball picks, and the scene host's game deciding it.
+- Source: USER 11-14 "那个火灯释放的火焰是同步的吗？", then (offered A: a share per player, overlap shares one with a roll, recommended; B: one target at a time by D19) "灯只要有大黄蜂进范围就放火球，按照它的频率放火球，火球自己索大黄蜂"; then "但是这样的话火球的规则就不大统一了，有两种火球索敌规则了" and, to A (every fireball picks its own player, recommended) or B (every fireball takes the target of what put it out, the lantern picking one by D19), "按照A吧".
 
 ### D20 Aims and chases point at the creature's target
 - Now: actions with which a creature looks at, chases or measures a player point at the player it goes after. This covers the `targeted_fsm` / `targeted_where_player` registry kinds, rewritten only where the field holds a player now, and decided again each time (`PointedAims`). Things a creature sets off take its target.
 - Replaced: untargeted actions that read the scene host's own var Hero (b680870 + review a6d0ef8, 10-18; aim markers ab47607).
 - Old-way signs: a targeted action type missing from the registry lists; a field pointed at a player for good.
-- Exceptions: camera things are never retargeted.
+- Exceptions: camera things are never retargeted. A fireball that chases a player by itself picks its own player (D107).
 - Source: aim-actions-follow-target.md, random-sync.md; b680870, a6d0ef8, ab47607.
 
 ### D21 A creature answers a wound at the player who dealt it
