@@ -572,6 +572,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: none known.
 - Source: house-furniture-shop.md, shared-prompt-agreement.md. USER 10-18 rule of one payer for the house; USER 11-01 "修建物质库之类的操作也需要另一个人到才能建" and the plan "一个人装好，两个人的钟居都算装好，跟家具一样" ("就这么改吧"); USER 11-08 "好像是钟居开启这件事互等，也是后选的人被判否", "就这样做吧".
 
+### D106 The lanterns that the game counts as creatures go as creatures go
+- Now: a thing that breaks and that the game counts as a creature it killed though it has no health (a state machine on its saved object writes the kill into the journal; of all saved things only the seven 'Wisp Flame Lantern's do, `CountsAsAKill`) goes as a creature: a member who walks into a room that others are in is told by each of them how it stands there, broken or with hits taken, and has theirs stand so, the most broken going (`CoopSave.BreakingCreatures`, `CoopSaveUpdateKind.BreakingCreature`, `Breakable.SetAlreadyBroken`); its break goes into the saves of the members as a creature's death does, as its room saves it when its player leaves (`OnBoolItemSaveValue`). Once everyone has left, each game loads it from its save: broken until a rest, otherwise whole, as partial hits are never saved (341bb8d, 0.5.2).
+- Replaced: each game loading such a lantern from its own save as its player walked in, so that it stood whole in the game of a player who had rested elsewhere while the partner in the room had it broken, and its break was in the breaker's save alone (until 341bb8d).
+- Old-way signs: a walk-in's lantern standing other than the ones in the room show it; a lantern's break kept in one save only.
+- Exceptions: every other saved thing that breaks keeps the game's own way in each save; the heat lamps of the peaks keep their own rule (USER 10-26, `CoopSave.HeatLamps`). The fireballs the lanterns summon: not settled yet (asked 11-14). Mine, not the user's: the journal kill as what makes a breaking thing a creature, the most broken going when several members send, and a walk-in only being told (not telling).
+- Source: 341bb8d. USER 11-14 "火灯就按照小怪来", to the options A (restore it in both games, like the heat lamps) and B (the walk-in takes the state of the player who stayed, recommended).
+
 ## D. Network, UI and the rest
 
 ### D56 Both games run the same build; no code for older versions
