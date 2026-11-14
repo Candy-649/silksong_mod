@@ -12,3 +12,7 @@ reports/itemdumps/
 reports/host-sync/*.json
 reports/host-sync/*.tsv
 reports/host-sync/dumps/
+
+# Files made for the user, and my local helper scripts (one holds the game's save key, which stays local)
+给你的文件/
+local/
