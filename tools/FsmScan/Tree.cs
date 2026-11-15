@@ -320,6 +320,20 @@ internal static class TreeDumper {
 
                 return $"{type}({string.Join(",", parts)})";
             }
+            case AssetClassID.AudioSource: {
+                // Whether it plays by itself as its object is switched on, and whether it plays on and on
+                var field = manager.GetBaseField(instance, info);
+                var parts = new List<string>();
+                if (field.Get("m_PlayOnAwake")?.AsBool == true) {
+                    parts.Add("plays on awake");
+                }
+
+                if (field.Get("Loop")?.AsBool == true || field.Get("m_Loop")?.AsBool == true) {
+                    parts.Add("loops");
+                }
+
+                return parts.Count == 0 ? type.ToString() : $"{type}({string.Join(",", parts)})";
+            }
             case AssetClassID.ParticleSystem: {
                 var field = manager.GetBaseField(instance, info);
                 var parts = new List<string>();
