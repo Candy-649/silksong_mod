@@ -75,6 +75,10 @@ for row in rows(os.path.join(research, 'classification.tsv')):
 # Silk hearts and attunement come from events that leave no saved object behind, so the larger count is taken; an
 # event that the joining player loses with a boss they have to fight again gives its heart again
 fields['max'] += ['silkRegenMax', 'attunement']
+# The deliveries that the couriers offer, which their game picked at random for each save, so that the players were
+# offered different ones (USER 11-15 "这个钟道镇送货员这里我和我朋友看到的货物不一样"): the joining save takes the host's,
+# and during play the game that picks them anew tells the others (SSMP CoopSave.QuestShopPicks)
+fields['host'] += ['BelltownCouriersGenericQuests']
 for merge in fields:
     fields[merge] = sorted(set(fields[merge]))
 
