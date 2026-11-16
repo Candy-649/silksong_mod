@@ -42,7 +42,7 @@ internal static class TreeDumper {
             try {
                 PrintBundle(manager, path, bundleDir, scriptNames, rootRegex, tag);
             } catch (Exception e) {
-                Console.WriteLine($"error in {Path.GetFileName(path)}: {e.GetType().Name}: {e.Message}");
+                Console.WriteLine($"error in {Path.GetFileName(path)}: {e}");
             } finally {
                 manager.UnloadAll();
             }
@@ -320,6 +320,14 @@ internal static class TreeDumper {
 
                 return $"{type}({string.Join(",", parts)})";
             }
+            case AssetClassID.Animator: {
+                // Whether it stops while none of the renderers under it is seen: 1 moves nothing then but the root, 2
+                // stops it whole, so that it goes on from where it was once it is seen again
+                var culling = manager.GetBaseField(instance, info).Get("m_CullingMode");
+                return culling is { IsDummy: false } && culling.AsInt != 0
+                    ? $"{type}({(culling.AsInt == 2 ? "stops unseen" : "only the root moves unseen")})"
+                    : type.ToString();
+            }
             case AssetClassID.AudioSource: {
                 // Whether it plays by itself as its object is switched on, and whether it plays on and on
                 var field = manager.GetBaseField(instance, info);
@@ -328,7 +336,9 @@ internal static class TreeDumper {
                     parts.Add("plays on awake");
                 }
 
-                if (field.Get("Loop")?.AsBool == true || field.Get("m_Loop")?.AsBool == true) {
+                // A field that the version of the asset does not have is a dummy, which has no value
+                if (field.Get("Loop") is { IsDummy: false, AsBool: true } ||
+                    field.Get("m_Loop") is { IsDummy: false, AsBool: true }) {
                     parts.Add("loops");
                 }
 
