@@ -139,6 +139,12 @@ OVERRIDES = {
     # Out", which sets the flag), which is there once for both, as the user decided on 2026-11-08: a player who agreed
     # in a box gave up their item with the other's, and their house had nothing to show for it
     'CrawbellInstalled': ('shared-world', 'installed in the shared house, once for both'),
+    # A wish that a board offers once GameManager.TimePasses finds that this save met its knight often enough, like
+    # the other wishes that TimePasses offers (pinstressQuestReady, garmondFinalQuestReady). The count it goes by,
+    # songChevalierEncounters, grew in the scene host's game only, where the copy of the knight woke: one player's
+    # board offered the wish and the other's did not (USER 11-16 "我这里祈愿板上没有闪光，没有新祈愿，但是我朋友那边
+    # 却有"). The corpse that takes it back as the wish is done gives a reward, which made it read as one
+    'songChevalierQuestReady': ('shared-world', 'offer of a board wish that TimePasses sets from counts of this save'),
 }
 # What the shared house has, which nothing takes away again: a check keeps it if either save has it
 HOUSE_RECORDS = {
