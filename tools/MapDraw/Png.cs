@@ -41,7 +41,11 @@ internal static class Png {
     }
 
     public static void Write(string path, byte[] rgba, int width, int height) {
-        using var file = File.Create(path);
+        File.WriteAllBytes(path, Encode(rgba, width, height));
+    }
+
+    public static byte[] Encode(byte[] rgba, int width, int height) {
+        using var file = new MemoryStream();
         file.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
 
         var header = new byte[13];
@@ -65,5 +69,6 @@ internal static class Png {
 
         Chunk(file, "IDAT", raw.ToArray());
         Chunk(file, "IEND", Array.Empty<byte>());
+        return file.ToArray();
     }
 }
