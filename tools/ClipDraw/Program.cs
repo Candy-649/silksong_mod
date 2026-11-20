@@ -70,9 +70,14 @@ internal static class Assets {
     private static readonly Dictionary<(string, long), AssetTypeValueField> Fields = new();
     private static Dictionary<string, string> _bundleOfFile;
 
-    /// <summary>The tk2d animator of the object at the end of a path in a scene, and the file it is in.</summary>
+    /// <summary>
+    /// The tk2d animator of the object at the end of a path in a scene, and the file it is in. A scene given by the
+    /// name of a bundle file, like heroloading_assets_all.bundle, which holds the hero, is that bundle.
+    /// </summary>
     public static (AssetsFileInstance File, AssetTypeValueField Animator) FindAnimator(string scene, string path) {
-        var bundlePath = Path.Combine(BundleDir, "scenes_scenes_scenes", scene.ToLowerInvariant() + ".bundle");
+        var bundlePath = scene.EndsWith(".bundle", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(BundleDir, scene)
+            : Path.Combine(BundleDir, "scenes_scenes_scenes", scene.ToLowerInvariant() + ".bundle");
         var bundle = Manager.LoadBundleFile(bundlePath, true);
         for (var i = 0; i < bundle.file.BlockAndDirInfo.DirectoryInfos.Count; i++) {
             if (!bundle.file.IsAssetsFile(i)) {
