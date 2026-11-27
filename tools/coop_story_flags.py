@@ -145,6 +145,12 @@ OVERRIDES = {
     # board offered the wish and the other's did not (USER 11-16 "我这里祈愿板上没有闪光，没有新祈愿，但是我朋友那边
     # 却有"). The corpse that takes it back as the wish is done gives a reward, which made it read as one
     'songChevalierQuestReady': ('shared-world', 'offer of a board wish that TimePasses sets from counts of this save'),
+    # The waking of the knight that sleeps in its tube (cog_10), a story scene that a player's talk sets off, which now
+    # waits until every player is next to it and plays in every game (BossRoomCoop.TalkStories of SSMP; USER 11-27
+    # "改吧"). It read as a boss's record, as the FSM that writes it was taken for the knight's, and only the waker's save
+    # had it, while GameManager.TimePasses moves the knight on from it into flags of the shared world
+    # (songChevalierActiveIn*): the other save said that it still slept and had it elsewhere at once
+    'wokeSongChevalier': ('shared-world', 'woken once for every player; TimePasses moves the knight on from it'),
 }
 # What the shared house has, which nothing takes away again: a check keeps it if either save has it
 HOUSE_RECORDS = {
