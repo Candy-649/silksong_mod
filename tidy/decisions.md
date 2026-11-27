@@ -621,6 +621,13 @@ built" means the user approved the rule but no commit has carried it out yet. Me
 - Exceptions: every other saved thing that breaks keeps the game's own way in each save; the heat lamps of the peaks keep their own rule (USER 10-26, `CoopSave.HeatLamps`). The fireballs the lanterns summon go by D107. Mine, not the user's: the journal kill as what makes a breaking thing a creature, the most broken going when several members send, and a walk-in only being told (not telling).
 - Source: 341bb8d. USER 11-14 "火灯就按照小怪来", to the options A (restore it in both games, like the heat lamps) and B (the walk-in takes the state of the player who stayed, recommended).
 
+### D114 A kill in the journal goes to the members in other rooms, who take it only where theirs has none
+- Now: every kill that a game records in the journal of creatures (`EnemyJournalManager.RecordKill`) goes to the members who are in another room (`CoopSave.SendToMembersElsewhere`, a `JournalKill` word), and an entry that the game gives whole at once (a death with `awardFullJournalEntry`, `CompleteJournalRecord`/`V2`) as one word. A member whose journal has no kill of that creature takes one; one whose entry is short of whole takes the rest when the kill gave it whole; nothing else, quietly (no popup). The members in the room count the kill from their own game as before.
+- Replaced: a member in another room, or one who came in after the death, took no kill, so a creature met once (the caged flea of arborium_08) stayed missing from their journal, for good in the host's, as the journal of a joining save takes only the host's (`CoopHostSync.MergeJournal`).
+- Old-way signs: a journal kill told to the members in the room; a told kill that adds to a count above 0 (the others' kills adding up in a member's journal); a whole entry told kill by kill.
+- Exceptions: a member who is in the room but whose game did not count the kill takes nothing from this. Mine, not the user's: an entry given whole is told as whole, so that a member is not left one kill short of an entry they can never finish.
+- Source: d95b3b2 (CHANGES e845ed0). USER 11-27, asked of the members who come in after the caged flea was tamed or never came into its room, to the option that one who has none of a creature takes one kill, "第二条补".
+
 ## D. Network, UI and the rest
 
 ### D56 Both games run the same build; no code for older versions
