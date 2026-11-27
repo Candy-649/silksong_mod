@@ -149,6 +149,13 @@ put('WoodWitchGaveMandrake', 'HOST', 'take host',
     'a story item handed in: the join takes the item away when the host handed it in (story items), so the '
     'record of the hand-in follows the host with it, which the giver tests (USER 11-10 "对齐了剧情也要对齐")')
 put('shakraAidForumBattle songChevalierQuestReady', 'HOST', 'take host', 'NPC/story state')
+put('BallowMovedToDivingBell', 'HOST', 'take host',
+    'world state set in a talk that moves a wish on, like BallowInSauna and BallowLeftSauna of the same worker: '
+    'he leaves for the bell and the trapdoor of dock_12 opens with it. The talk completes the wish step that '
+    'offers it, so a player who joins after the host had it never gets the talk and the trapdoor stays shut; '
+    'partners in the game get it from the talk (CoopSave.WishTalk). The only talk result that changes a room '
+    'besides the opening and the arrivals, by local/scripts/personal_marks_wish_talks.py '
+    '(USER 11-27 "其他类似的标记呢？需要普查一下？")')
 put('gainedCurse bindCutscenePlayed BelltownDoctorCuredCurse', 'PERSONAL', 'keep client',
     'the curse of the player\'s own hero: the curse sequence, the flag of the cutscene that it clears and sets '
     'again, and the cure. The wishes of the story keep the players in step, and the join changes neither the '
