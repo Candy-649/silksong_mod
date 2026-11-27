@@ -111,10 +111,13 @@ COUNTED = {
     'Attunement Increase',
 }
 # Story items that something in the world uses up. The host's world says whether it was used: a host who had it and
-# used it leaves it at 0 for the joining player too, as the lock or scene that took it is used up in their world now
+# used it leaves it at 0 for the joining player too, as the lock or scene that took it is used up in their world now.
+# Not the pieces that the sleeper of cog_10 asks for: every player hands over their own share of them, and it wakes
+# only once all have (SSMP BossRoomCoop.TalkStories, D44; USER 11-27 "那就每个人都要交自己那份，那就所有人都要有"), so a host
+# who handed theirs over uses up nothing of the joining player's
 STORY = {
     'Belltown House Key', 'Dock Key', 'Dock Demo Key', 'Ward Boss Key', 'Coral Chunk', 'Craw Summons', 'Crawbell',
-    'Farsight', 'Materium', 'White Flower', 'Wood Witch Item', 'Blue Goop Jar', 'Cog Heart Pieces',
+    'Farsight', 'Materium', 'White Flower', 'Wood Witch Item', 'Blue Goop Jar',
 }
 
 items = {}
