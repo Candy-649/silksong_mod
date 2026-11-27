@@ -173,6 +173,10 @@ ARENA_WINS = {
 # end brings: in ant_04_mid the character who stays as the room's merchant only shows for a save that met her there,
 # and two items of her shop need the second flag
 ARENA_WIN_COMPANIONS = {'mapperMetInAnt04', 'SeenMapperHuntersNest'}
+# Story steps done once for every player, which a check keeps if either save has them: the knight that sleeps in its
+# tube wakes for all players at once, with what one of them hands over (BossRoomCoop.TalkStories of SSMP), and a save
+# that woke it while it played alone keeps it, as it keeps what it paid for it
+STORY_RECORDS = {'wokeSongChevalier'}
 for _win in ARENA_WINS:
     OVERRIDES[_win] = ('shared-world', 'arena win, which one player wins for both')
 for _companion in ARENA_WIN_COMPANIONS:
@@ -543,7 +547,7 @@ with open(os.path.join(reports, 'coop-story-flags.tsv'), 'w', encoding='utf-8', 
 # Records of something done for good, which a check keeps if either save has them, instead of taking the save that was
 # played longer: a boolean that is set, or a field of another type that is not 0
 shared['Records'] = [name for name in shared['Bools'] + shared['Enums']
-                     if name in ARENA_WINS | ARENA_WIN_COMPANIONS | HOUSE_RECORDS]
+                     if name in ARENA_WINS | ARENA_WIN_COMPANIONS | HOUSE_RECORDS | STORY_RECORDS]
 with open(target, 'w', encoding='utf-8', newline='\n') as out:
     json.dump(shared, out, indent=1, ensure_ascii=False)
     out.write('\n')

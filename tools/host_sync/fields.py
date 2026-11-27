@@ -79,6 +79,8 @@ put('PickedUpCrowMemento CollectedMementoGrey CollectedMementoSprintmaster nuuMe
     'ONLY_ADD', 'OR', 'memento / heart collected flag; goes with the item (mementos only-add)')
 put('ConstructedMaterium ConstructedFarsight', 'ONLY_ADD', 'OR', 'plot item built at the desk; if the host built it the client must not keep a usable ingredient (see dangers)')
 put('CrawbellInstalled', 'ONLY_ADD', 'OR', 'story item installed in the home')
+put('wokeSongChevalier', 'ONLY_ADD', 'OR', 'knight in its tube woken for every player at once with what one of them handed '
+    'over (SSMP BossRoomCoop.TalkStories, USER 11-27): a save never loses it, nor what it paid for it')
 put('pilgrimQuestSpoolCollected tookGreymoor17Spool', 'ONLY_ADD', 'per-source', 'spool piece world source flag; goes with silkSpoolParts')
 put('memoryOrbs_Clover_02c_A memoryOrbs_Clover_03_B memoryOrbs_Clover_06_A memoryOrbs_Clover_11 memoryOrbs_Clover_16_B '
     'memoryOrbs_Clover_16_C memoryOrbs_Clover_21', 'ONLY_ADD', 'OR', 'world memory orb gathered (story progress in that area)')
